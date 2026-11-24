@@ -148,9 +148,14 @@ is running, and users connect any other provider/model/key via `quillancode plug
 `quillancode auth login`, or the IDE's Provider·model·key panel. Keys are stored
 locally and masked; nothing is embedded in the app.
 
-The IDE has a dark three-pane shell with an explorer (↑ Up navigation, filter,
-Ctrl+P quick open, file-type icons), multi-file tabs with unsaved indicators, a
-line-numbered editor with Ctrl+S save, provider/model/key controls, and an agent chat. It supports any file type: text is edited in place; images, audio,
+The IDE is a free-floating SAO-style holo deck: translucent glass panels with
+luminous hairline borders, corner brackets, deep shadows and a subtle hover
+float. A slow WebGL matrix rain runs strictly behind the glass (30fps, 1× DPR).
+Each foreground surface has its own shader layer: a data lattice in the explorer,
+a neural pulse field in the agent panel, and chromatic ghost text with occasional
+glitch in the editor. Panels include an explorer (↑ Up, filter, Ctrl+P quick open,
+file-type icons), multi-file tabs with unsaved indicators, a line-numbered editor
+with Ctrl+S save, provider/model/key controls, and an agent chat. It supports any file type: text is edited in place; images, audio,
 video and PDFs are rendered inline; `.safetensors`, `.pt`, `.gguf`, `.npy/.npz`
 and other binary artifacts are inspected into a tensor/entry table with a hex
 preview (`quillancode artifact <path>` exposes the same inspector).
