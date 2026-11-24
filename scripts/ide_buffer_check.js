@@ -24,14 +24,18 @@ async function main() {
   };
   await call('Runtime.enable');
   const result = await ev(`(async()=>{
-    await openFile('README.md');
+    const list=await api('/api/files?path=.');
+    const names=list.items.filter(i=>!i.dir && /\\.(md|txt|py|toml|json)$/.test(i.name))
+      .slice(0,2).map(i=>i.name);
+    if(names.length<2) return {error:'not enough text files in workspace', ok:false};
+    await openFile(names[0]);
     document.querySelector('#content').value='QC_BUFFER_PROBE';
     document.querySelector('#content').dispatchEvent(new Event('input'));
-    await openFile('pyproject.toml');
+    await openFile(names[1]);
     const other=document.querySelector('#content').value.slice(0,20);
-    await openFile('README.md');
+    await openFile(names[0]);
     const restored=document.querySelector('#content').value;
-    return {other, restored, dirty:[...dirty]};
+    return {first:names[0], second:names[1], other, restored, dirty:[...dirty]};
   })()`);
   console.log(JSON.stringify({
     ...result,
