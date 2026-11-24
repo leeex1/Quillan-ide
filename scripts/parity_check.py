@@ -66,8 +66,8 @@ CHECKS: list[Check] = [
     Check("debug runtime", ["debug"], '"executable"'),
     Check("upgrade check", ["upgrade", "--check"], '"up_to_date"'),
     Check("uninstall plan", ["uninstall", "--dry-run"], '"dry_run": true'),
-    Check("opencode live model comparison", ["compare"], '"ok": true'),
-    Check("opencode side-by-side matrix", ["sbs"], "mismatched=0"),
+    Check("opencode live model comparison", ["compare"], '"ok": true', live=True),
+    Check("opencode side-by-side matrix", ["sbs"], "mismatched=0", live=True),
     Check("BYO key/model smoke", ["byo"], '"ok": true'),
     Check("BYO login guide", ["guide", "deepseek"], "DEEPSEEK_API_KEY"),
     Check("dsh runtime probe", ["external", "dsh"], '"ok": true'),
@@ -115,22 +115,30 @@ def main() -> int:
     print(f"{'CAPABILITY':<34} {'RESULT':<6} EVIDENCE")
     print("-" * 100)
     for check in CHECKS:
-        try:
-            proc = subprocess.run(
-                [sys.executable, "-m", "quillancode", *check.args],
-                cwd=str(ROOT),
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=180,
-            )
-        except subprocess.TimeoutExpired:
+        proc = None
+        combined = ""
+        ok = False
+        for attempt in range(3 if check.live else 1):
+            try:
+                proc = subprocess.run(
+                    [sys.executable, "-m", "quillancode", *check.args],
+                    cwd=str(ROOT),
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=180,
+                )
+            except subprocess.TimeoutExpired:
+                continue
+            combined = (proc.stdout + proc.stderr).strip()
+            ok = proc.returncode == 0 and (not check.expect or check.expect in combined)
+            if ok:
+                break
+        if proc is None:
             print(f"{check.name:<34} {'FAIL':<6} timeout")
             failures.append(check.name)
             continue
-        combined = (proc.stdout + proc.stderr).strip()
-        ok = proc.returncode == 0 and (not check.expect or check.expect in combined)
         first = next(
             (line.strip() for line in combined.splitlines() if line.strip()), ""
         )

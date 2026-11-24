@@ -125,6 +125,18 @@
   #content::selection{background:#7c5cff66}
   .findbar{display:none;gap:6px;padding:6px 12px;background:#111827;border-bottom:1px solid var(--line);align-items:center}
   .findbar.open{display:flex}
+  section.editor{position:relative}
+  .selbar{display:none;gap:4px;position:absolute;top:38px;right:16px;z-index:8;padding:5px;
+    background:#1b1636;border:1px solid var(--accent);border-radius:8px;box-shadow:0 10px 30px #000a}
+  .selbar.open{display:flex}
+  .selbar button{padding:4px 8px;font-size:10px}
+  .cmdbox{position:fixed;inset:0;background:#05070ccc;display:none;align-items:flex-start;justify-content:center;
+    z-index:22;padding-top:14vh;backdrop-filter:blur(3px)}
+  .cmdbox.open{display:flex}
+  .cmdbox .inner{width:min(560px,90vw);background:var(--panel);border:1px solid var(--accent);border-radius:12px;overflow:hidden;box-shadow:0 24px 70px #000b}
+  .cmdbox input{width:100%;background:var(--bg);border:0;border-bottom:1px solid var(--line);padding:14px 16px;outline:none;font-size:14px}
+  .cmdrow{padding:9px 16px;font:12px ui-monospace,monospace;cursor:pointer;border-bottom:1px solid #202740}
+  .cmdrow:hover{background:var(--panel2);color:var(--accent2)}
   .findbar input{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 8px;width:180px;outline:none}
   .problems{padding:0 12px 6px;font:11px ui-monospace,monospace;color:var(--muted);min-height:16px}
   .problems.bad{color:var(--danger)}.problems.good{color:var(--ok)}
@@ -176,6 +188,8 @@
   <div class="activity">
     <button class="active" id="act-tree" title="Explorer">◈</button>
     <button id="act-find" title="Find in file">⌕</button>
+    <button id="act-diff" title="Git diff">⇄</button>
+    <button id="act-council" title="Run council">♛</button>
     <button id="act-check" title="Check current file">✓</button>
     <button id="act-agent" title="Focus agent">✦</button>
     <button id="act-setup" title="Provider settings">⚙</button>
@@ -198,6 +212,13 @@
     <div class="editor-hud"><span>◈ NEURAL WORKSPACE</span><span id="hud-latency">LATENCY 0ms</span><span><button id="copyfile" style="padding:2px 8px;font-size:10px">Copy file</button> <button id="pasteinto" style="padding:2px 8px;font-size:10px">Paste</button> · QCI//ONLINE</span></div>
     <div id="tabs"></div>
     <div class="findbar" id="findbar"><input id="findtext" placeholder="Find in file…"><button id="findnext">Next</button><input id="replacetext" placeholder="Replace…"><button id="replaceone">Replace</button><button id="findclose">×</button></div>
+    <div class="selbar" id="selbar">
+      <button data-ai="Explain this selected code concisely">Explain</button>
+      <button data-ai="Find bugs in this selected code and propose a fix">Fix</button>
+      <button data-ai="Refactor this selected code for clarity and safety">Refactor</button>
+      <button data-ai="Write focused unit tests for this selected code">Tests</button>
+      <button data-ai="Document this selected code with a short comment block">Document</button>
+    </div>
     <div id="viewer"></div>
     <div class="editor-wrap" id="textwrap"><div id="gutter">1</div><pre id="highlight"></pre><textarea id="content" spellcheck="false" placeholder="Select a file to begin"></textarea></div>
     <div class="problems" id="problems">✓ diagnostics ready</div>
@@ -233,6 +254,7 @@
         <button class="chip" data-q="Review this file and list concrete issues">Review</button>
         <button class="chip" data-q="Explain this file concisely">Explain</button>
         <button class="chip" data-q="Write tests for the current file">Tests</button>
+        <button id="council" class="chip">Council</button>
         <button id="clear" class="chip">Clear</button>
       </div>
     </div>
@@ -244,6 +266,7 @@
 </footer>
 <div id="toast"></div>
 <div id="palette"><div class="palette-box"><input id="pquery" placeholder="Quick open — type a file name…"><div id="pres"></div><div class="palette-hint">Enter to open · Esc to close</div></div></div>
+<div class="cmdbox" id="cmdbox"><div class="inner"><input id="cmdinput" placeholder="Type a command…"><div id="cmdresults"></div><div class="palette-hint">Enter to run · Esc to close</div></div></div>
 <script>
 const $ = id => document.getElementById(id);
 const api = async (u,o) => { const t=performance.now(); const r=await fetch(u,o); const j=await r.json();
@@ -496,6 +519,64 @@ async function pasteInto(){
 $('copyfile').onclick=copyFile;
 $('pasteinto').onclick=pasteInto;
 if(window.quillancode && window.quillancode.onCopyFile) window.quillancode.onCopyFile(copyFile);
+function showText(title,text,badge){
+  $('textwrap').style.display='none'; const v=$('viewer'); v.style.display='block';
+  v.innerHTML='<div class="viewer-head"><span class="vbadge">'+esc(badge||'text')+'</span><h3>'+esc(title)+'</h3></div>'+
+    '<pre class="hex">'+esc(text||'(empty)').slice(0,20000)+'</pre>';
+}
+async function showDiff(){
+  const d=await api('/api/diff'); showText('git diff — workspace',d.diff,'diff');
+  toast('Diff loaded');
+}
+async function runCouncil(){
+  const sel=$('content').value.slice($('content').selectionStart,$('content').selectionEnd).trim();
+  const q=sel||$('prompt').value.trim()||'Review the current workspace and propose the next best change';
+  $('prompt').value=''; addMsg('you','[council] '+q.slice(0,200)); $('f-status').textContent='council thinking…';
+  const r=await api('/api/council',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({question:q,agents:2})});
+  if(r.error){ addMsg('assistant','Council error: '+r.error); }
+  else{
+    const lines=(r.proposals||[]).map(p=>'['+p.seat+'-'+p.name+'] '+p.content).join('\n\n');
+    addMsg('assistant',(lines||'(no proposals)')+'\n\n— synthesis —\n'+(r.synthesis||'')+'\nconfidence='+r.confidence);
+  }
+  $('f-status').textContent='ready';
+}
+const CMDS={
+  'save':()=>save(), 'find in file':()=>toggleFind(true), 'check current file':checkCurrent,
+  'git diff':showDiff, 'git commit':()=>$('gitcommit').click(), 'git push':()=>$('gitpush').click(),
+  'council':runCouncil, 'quick open':()=>$('palette').classList.add('open'),
+  'clear chat':()=>$('clear').click(), 'open folder':()=>window.quillancode&&window.quillancode.openFolder(),
+};
+function toggleCommands(open){
+  const b=document.querySelector('#cmdbox'); b.classList.toggle('open',open!==undefined?open:undefined);
+  if(b.classList.contains('open')){$('cmdinput').value='';renderCommands();$('cmdinput').focus();}
+}
+function renderCommands(){
+  const q=$('cmdinput').value.toLowerCase();
+  const keys=Object.keys(CMDS).filter(k=>k.includes(q));
+  document.querySelector('#cmdresults').innerHTML=keys.map(k=>'<div class="cmdrow" data-k="'+esc(k)+'">'+esc(k)+'</div>').join('');
+}
+$('cmdinput').addEventListener('input',renderCommands);
+$('cmdresults').onclick=e=>{const r=e.target.closest('.cmdrow');if(!r)return;toggleCommands(false);CMDS[r.dataset.k]();};
+$('cmdinput').addEventListener('keydown',e=>{if(e.key==='Enter'){const r=document.querySelector('.cmdrow');if(r)r.click();}});
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.key.toLowerCase()==='p'){e.preventDefault();toggleCommands(true);}
+  if(e.key==='Escape'){toggleCommands(false);document.querySelector('#palette').classList.remove('open');}
+});
+$('selbar').onclick=e=>{const b=e.target.closest('[data-ai]');if(!b)return;
+  const sel=$('content').value.slice($('content').selectionStart,$('content').selectionEnd).trim();
+  if(sel) send(b.dataset.ai+'\n\n```\n'+sel+'\n```');};
+$('content').addEventListener('mouseup',()=>{
+  const el=$('content'); const bar=$('selbar');
+  bar.classList.toggle('open',el.selectionEnd-el.selectionStart>0);
+});
+$('content').addEventListener('keyup',()=>{
+  const el=$('content'); const bar=$('selbar');
+  bar.classList.toggle('open',el.selectionEnd-el.selectionStart>0);
+});
+$('act-diff').onclick=showDiff;
+$('act-council').onclick=runCouncil;
+$('council').onclick=runCouncil;
 $('act-tree').onclick=()=>$('filter').focus();
 $('act-find').onclick=()=>toggleFind();
 $('act-check').onclick=checkCurrent;

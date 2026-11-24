@@ -105,11 +105,22 @@ async function main() {
       document.querySelector('#clear').click();
       c.clear = document.querySelector('#chat').textContent.includes('cleared');
       c.palette = (document.querySelector('#pquery').value='README', await (async()=>{await runPalette();return document.querySelectorAll('#pres .res').length>0;})());
+      toggleCommands(true);
+      c.commands = document.querySelectorAll('.cmdrow').length>3;
+      toggleCommands(false);
+      c.selectionBar = (document.querySelector('#content').setSelectionRange(0,5),
+        document.querySelector('#content').dispatchEvent(new Event('mouseup')),
+        document.querySelector('#selbar').classList.contains('open'));
+      await showDiff(); await wait(250);
+      c.diffView = document.querySelector('#viewer').textContent.includes('git diff');
+      await runCouncil(); await wait(600);
+      c.council = document.querySelector('#chat').textContent.includes('synthesis');
       try{ await showViewer('qc_missing_artifact_'+tag+'.png','png');
            c.missingArtifactGraceful = document.querySelector('#viewer').textContent.length>0; }
       catch(e){ c.missingArtifactGraceful=false; }
     }catch(e){ c.error=String(e); }
     for(const p of [txt,img,st]) await post('/api/delete',{path:p});
+    await loadTree('.');
     return c;
   })()`);
 

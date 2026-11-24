@@ -230,6 +230,13 @@ def _build_handler(
                         },
                     )
                 return
+            if self.path.startswith("/api/diff"):
+                from .github import diff as git_diff
+
+                self._send(
+                    200, {"diff": git_diff(Path(config.get("server.workspace", ".")))}
+                )
+                return
             if self.path.startswith("/api/git/status"):
                 from .github import status as git_status
 
@@ -323,6 +330,22 @@ document.getElementById('chat').addEventListener('submit', async (e) => {
                 self._send(404, {"error": "not found"})
 
         def do_POST(self) -> None:  # noqa: N802
+            if self.path.startswith("/api/council"):
+                from .council import Council
+
+                try:
+                    size = int(self.headers.get("Content-Length", "0"))
+                    payload = json.loads(self.rfile.read(size).decode("utf-8"))
+                    question = str(payload.get("question", "")).strip()
+                    if not question:
+                        raise ValueError("question required")
+                    result = Council(config).deliberate(
+                        question, int(payload.get("agents", 2))
+                    )
+                    self._send(200, result.to_dict())
+                except (ValueError, OSError) as exc:
+                    self._send(400, {"error": str(exc)})
+                return
             if self.path.startswith("/api/git/"):
                 from .github import git
 

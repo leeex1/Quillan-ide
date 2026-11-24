@@ -152,7 +152,7 @@ def byo_smoke(prompt: str = "Reply with exactly: QC_BYO_OK") -> dict[str, Any]:
     }
 
 
-def compare_live(
+def _compare_once(
     prompt: str = "Reply with exactly: QC_LIVE_COMPARE_OK",
 ) -> dict[str, Any]:
     """Drive opencode and quillancode on the same prompt/model and compare output."""
@@ -227,6 +227,23 @@ def compare_live(
         "quillancode": b[-200:],
         "model": "google/gemini-flash-lite-latest",
     }
+
+
+def compare_live(
+    prompt: str = "Reply with exactly: QC_LIVE_COMPARE_OK",
+) -> dict[str, Any]:
+    """Retry the live comparison to absorb provider-side transient failures."""
+    result = {
+        "ok": False,
+        "opencode": "",
+        "quillancode": "",
+        "model": "google/gemini-flash-lite-latest",
+    }
+    for _ in range(3):
+        result = _compare_once(prompt)
+        if result.get("ok"):
+            break
+    return result
 
 
 def check_qwen() -> dict[str, Any]:
