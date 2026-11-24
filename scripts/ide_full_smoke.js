@@ -52,19 +52,34 @@ async function main() {
       c.replace = document.querySelector('#content').value==='smoke changed';
       await save();
       c.saved = (await api('/api/file?path='+encodeURIComponent(txt))).content==='smoke changed';
+      if(window.quillancode && window.quillancode.copyText){
+        await window.quillancode.copyText('QC_CLIP_PROBE');
+        c.clipboardWrite = (await window.quillancode.readClipboard())==='QC_CLIP_PROBE';
+        document.querySelector('#content').setSelectionRange(0,0);
+        await window.quillancode.copyText('PASTED>');
+        await pasteInto();
+        c.clipboardPaste = document.querySelector('#content').value.startsWith('PASTED>');
+      }
       document.querySelector('#findclose').click();
       c.findClose = !document.querySelector('#findbar').classList.contains('open');
-      const png='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9kAAAAASUVORK5CYII=';
+      const cv=document.createElement('canvas'); cv.width=240; cv.height=120;
+      const cx=cv.getContext('2d'); cx.fillStyle='#7c5cff'; cx.fillRect(0,0,240,120);
+      cx.fillStyle='#ffffff'; cx.font='bold 32px monospace'; cx.fillText('QC',80,70);
+      const png=cv.toDataURL('image/png').split(',')[1];
       await post('/api/file',{path:img,base64:png});
-      await loadTree('.'); await openFile(img); await wait(300);
-      c.imageViewer = !!document.querySelector('#viewer img') && document.querySelector('#artifact-img').naturalWidth>0;
-      const h=JSON.stringify({weight:{dtype:'F16',shape:[2,2],data_offsets:[0,8]}});
+      await loadTree('.'); await openFile(img); await wait(500);
+      const ii=document.querySelector('#artifact-img');
+      c.imageViewer = !!ii && ii.naturalWidth>100 &&
+        String((document.querySelector('#img-dims')||{}).textContent||'').includes('rendered');
+      const h=JSON.stringify({w1:{dtype:'F32',shape:[64,64],data_offsets:[0,16384]},
+        w2:{dtype:'BF16',shape:[64],data_offsets:[16384,16512]},
+        w3:{dtype:'F16',shape:[512,128],data_offsets:[16512,149504]}});
       const b=new Uint8Array(8+h.length+8); new DataView(b.buffer).setBigUint64(0,BigInt(h.length),true);
       for(let i=0;i<h.length;i++)b[8+i]=h.charCodeAt(i);
       await post('/api/file',{path:st,base64:btoa(String.fromCharCode(...b))});
-      await loadTree('.'); await openFile(st); await wait(400);
-      c.tensorViewer = document.querySelector('#viewer').textContent.includes('F16') &&
-        document.querySelectorAll('.sizebar i').length===1;
+      await loadTree('.'); await openFile(st); await wait(500);
+      c.tensorViewer = document.querySelector('#viewer').textContent.includes('BF16') &&
+        document.querySelectorAll('.sizebar i').length===3;
       c.tabs = document.querySelectorAll('.tab').length>=3;
       document.querySelector('#act-check').click(); await wait(400);
       c.checks = document.querySelector('#problems').textContent.length>3;

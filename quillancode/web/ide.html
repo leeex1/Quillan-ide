@@ -193,7 +193,7 @@
     <div class="branding"><img src="/assets/ronin-badge.svg" alt=""><span>QUILLAN-RONIN<br>SOVEREIGN EDITION</span></div>
   </aside>
   <section class="editor">
-    <div class="editor-hud"><span>◈ NEURAL WORKSPACE</span><span id="hud-latency">LATENCY 0ms</span><span>QCI//ONLINE</span></div>
+    <div class="editor-hud"><span>◈ NEURAL WORKSPACE</span><span id="hud-latency">LATENCY 0ms</span><span><button id="copyfile" style="padding:2px 8px;font-size:10px">Copy file</button> <button id="pasteinto" style="padding:2px 8px;font-size:10px">Paste</button> · QCI//ONLINE</span></div>
     <div id="tabs"></div>
     <div class="findbar" id="findbar"><input id="findtext" placeholder="Find in file…"><button id="findnext">Next</button><input id="replacetext" placeholder="Replace…"><button id="replaceone">Replace</button><button id="findclose">×</button></div>
     <div id="viewer"></div>
@@ -440,6 +440,24 @@ $('gitpush').onclick=async()=>{
   const r=await api('/api/git/push',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
   toast(r.ok?'Pushed':('Push failed: '+r.error||r.output)); gitStatus();
 };
+async function copyFile(){
+  const text=$('content').value;
+  if(window.quillancode && window.quillancode.copyText) await window.quillancode.copyText(text);
+  else if(navigator.clipboard) await navigator.clipboard.writeText(text);
+  toast('Copied '+text.length+' chars to clipboard');
+}
+async function pasteInto(){
+  let text='';
+  if(window.quillancode && window.quillancode.readClipboard) text=await window.quillancode.readClipboard();
+  else if(navigator.clipboard) text=await navigator.clipboard.readText();
+  const el=$('content'); const s=el.selectionStart,e=el.selectionEnd;
+  el.value=el.value.slice(0,s)+text+el.value.slice(e);
+  el.setSelectionRange(s+text.length,s+text.length);
+  el.dispatchEvent(new Event('input'));
+}
+$('copyfile').onclick=copyFile;
+$('pasteinto').onclick=pasteInto;
+if(window.quillancode && window.quillancode.onCopyFile) window.quillancode.onCopyFile(copyFile);
 $('act-tree').onclick=()=>$('filter').focus();
 $('act-find').onclick=()=>toggleFind();
 $('act-check').onclick=checkCurrent;

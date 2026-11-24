@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell, clipboard } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -31,6 +31,8 @@ async function chooseFolder() {
 }
 
 ipcMain.handle('open-folder', chooseFolder);
+ipcMain.handle('clipboard-read', () => clipboard.readText());
+ipcMain.handle('clipboard-write', (_event, text) => clipboard.writeText(String(text)));
 
 function buildMenu() {
   const template = [
@@ -97,6 +99,19 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
     },
+  });
+  mainWindow.webContents.on('context-menu', (_event, params) => {
+    const items = [];
+    if (params.selectionText) items.push({ label: 'Copy', role: 'copy' });
+    items.push(
+      { label: 'Paste', click: () => mainWindow.webContents.paste() },
+      { label: 'Select All', role: 'selectAll' },
+      { type: 'separator' },
+      { label: 'Copy whole file', click: () => send('menu-copy-file') },
+      { type: 'separator' },
+      { label: 'Inspect', role: 'inspectElement', x: params.x, y: params.y },
+    );
+    Menu.buildFromTemplate(items).popup();
   });
   setTimeout(() => mainWindow.loadURL(`http://127.0.0.1:${port}/ide`), 500);
   mainWindow.on('closed', () => { mainWindow = null; });
