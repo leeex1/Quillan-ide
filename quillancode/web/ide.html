@@ -11,7 +11,7 @@
     --ok:#9dff5c; --danger:#ff4d8d; --radius:10px;
   }
   *{box-sizing:border-box}
-  #bgfx{position:fixed;inset:0;width:100%;height:100%;z-index:-2;pointer-events:none;opacity:.55}
+  #bgfx{position:fixed;inset:0;width:100%;height:100%;z-index:-2;pointer-events:none;opacity:.32}
   .scanlines{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.18;
     background:repeating-linear-gradient(0deg,transparent 0 2px,#0affff0a 2px 3px)}
   @keyframes holo{0%,100%{opacity:.55}50%{opacity:.85}}
@@ -208,7 +208,15 @@
   .viewer-head{border-bottom:1px solid rgba(25,227,209,.25)}
   .viewer-sub{color:#9fc2c8}
   #content{text-shadow:0 0 8px rgba(223,247,245,.12)}
-  #highlight{text-shadow:0 0 10px rgba(25,227,209,.10)}
+  /* localized chromatic-ghost shader on foreground typography */
+  @keyframes ghost-shift{
+    0%,94%{text-shadow:-1px 0 rgba(25,227,209,.38),1px 0 rgba(255,77,141,.30),0 0 14px rgba(25,227,209,.22)}
+    96%,100%{text-shadow:2px 0 rgba(255,77,141,.62),-2px 0 rgba(25,227,209,.62),0 0 22px rgba(25,227,209,.45)}
+  }
+  #highlight{text-shadow:-.7px 0 rgba(25,227,209,.20),.7px 0 rgba(255,77,141,.14),0 0 10px rgba(25,227,209,.10);animation:ghost-shift 7s steps(1) infinite}
+  .brand,.panel-title,.viewer-head h3{animation:ghost-shift 9s steps(1) infinite}
+  .msg:hover{text-shadow:-1px 0 rgba(25,227,209,.35),1px 0 rgba(255,77,141,.25)}
+  .hud-card .line b{text-shadow:0 0 12px rgba(255,180,84,.45)}
   .activity button{border-color:transparent}
   .activity button.active{background:rgba(25,227,209,.12);border-color:rgba(25,227,209,.5)}
 
@@ -234,6 +242,35 @@
     background-image:linear-gradient(135deg,rgba(25,227,209,.16) 0 18px,transparent 18px) top left/28px 28px no-repeat,
                      linear-gradient(315deg,rgba(255,180,84,.12) 0 18px,transparent 18px) bottom right/28px 28px no-repeat;
   }
+  /* ── per-surface holographic shaders ─────────────────── */
+  /* Explorer: data-lattice scan, deliberately separate from the rain */
+  aside:not(.agent)::before{
+    background:
+      repeating-linear-gradient(135deg,transparent 0 17px,rgba(25,227,209,.045) 17px 18px),
+      radial-gradient(120% 60% at 0% 0%,rgba(25,227,209,.13),transparent 62%),
+      linear-gradient(180deg,rgba(8,20,27,.2),rgba(5,10,16,.5));
+  }
+  @keyframes lattice{0%{background-position:0 0,0 0,0 0}100%{background-position:0 36px,0 0,0 0}}
+  aside:not(.agent)::before{animation:lattice 14s linear infinite}
+  /* Agent: neural pulse field */
+  aside.agent::before{
+    background:
+      radial-gradient(circle at 50% 18%,rgba(25,227,209,.16),transparent 55%),
+      radial-gradient(circle at 82% 82%,rgba(255,180,84,.10),transparent 50%),
+      repeating-radial-gradient(circle at 50% 30%,transparent 0 22px,rgba(25,227,209,.035) 22px 23px);
+  }
+  @keyframes neural{0%,100%{opacity:.55;transform:scale(1)}50%{opacity:.9;transform:scale(1.04)}}
+  aside.agent::before{animation:neural 9s ease-in-out infinite}
+  /* Editor: stronger chromatic ghost with occasional glitch */
+  @keyframes ghost-strong{
+    0%,92%{text-shadow:-1.4px 0 rgba(25,227,209,.45),1.4px 0 rgba(255,77,141,.35),0 0 18px rgba(25,227,209,.28)}
+    94%,98%{text-shadow:3px 0 rgba(255,77,141,.7),-3px 0 rgba(25,227,209,.7),0 0 26px rgba(25,227,209,.5)}
+    100%{text-shadow:-1.4px 0 rgba(25,227,209,.45),1.4px 0 rgba(255,77,141,.35),0 0 18px rgba(25,227,209,.28)}
+  }
+  #highlight{animation:ghost-strong 8s steps(1) infinite}
+  .editor-wrap::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:3;
+    background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(25,227,209,.018) 3px 4px)}
+  .brand{animation:ghost-strong 11s steps(1) infinite}
 </style>
 </head>
 <body>
@@ -337,12 +374,16 @@ const $ = id => document.getElementById(id);
   if(!gl){ if(c)c.style.display='none'; return; }
   const vs='attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}';
   const fs='precision mediump float;uniform float t;uniform vec2 r;'+
+    'float h(float x){return fract(sin(x*127.1)*43758.5453);}'+
     'void main(){vec2 uv=gl_FragCoord.xy/r;vec2 q=uv*vec2(r.x/r.y,1.);'+
-    'float g=step(.975,fract(q.x*16.))+step(.975,fract(q.y*9.-t*.12));'+
-    'float beam=exp(-9.*abs(sin(q.x*2.2+q.y*1.5+t*.4)))*.4;'+
-    'float a=exp(-3.5*length(uv-vec2(.16,.12)))*.3+exp(-3.5*length(uv-vec2(.86,.9)))*.25;'+
-    'vec3 col=vec3(.015,.035,.06)+vec3(.06,.8,.75)*g*.22+vec3(.08,.95,.9)*beam+vec3(1.,.55,.16)*a;'+
-    'gl_FragColor=vec4(col,1.);}';
+    'float col=floor(q.x*46.);float s=h(col);float sp=.05+s*.18;'+
+    'float head=fract(t*sp+s);float d=fract(head-q.y);'+
+    'float trail=exp(-7.*d)*step(.18,d);'+
+    'float glyph=step(.28,h(col*3.1+floor(q.y*36.)+floor(t*3.)));'+
+    'float b=trail*glyph;float tip=exp(-45.*d);'+
+    'vec3 colr=vec3(.004,.016,.024)+vec3(.05,1.,.66)*b*.52+'+
+    'vec3(.55,1.,.85)*tip*.7+vec3(1.,.55,.12)*tip*s*.35;'+
+    'gl_FragColor=vec4(colr,1.);}';
   const sh=(tp,src)=>{const s=gl.createShader(tp);gl.shaderSource(s,src);gl.compileShader(s);return s;};
   const pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,vs));
   gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,fs));gl.linkProgram(pr);gl.useProgram(pr);
@@ -351,10 +392,16 @@ const $ = id => document.getElementById(id);
   const loc=gl.getAttribLocation(pr,'p');gl.enableVertexAttribArray(loc);
   gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
   const tLoc=gl.getUniformLocation(pr,'t'), rLoc=gl.getUniformLocation(pr,'r');
-  function frame(ms){const dpr=Math.min(devicePixelRatio||1,2);const w=innerWidth*dpr,h=innerHeight*dpr;
+  let last=0;
+  function frame(ms){
+    requestAnimationFrame(frame);
+    if(ms-last<33) return;   // cap background to ~30fps
+    last=ms;
+    const dpr=Math.min(devicePixelRatio||1,1);  // 1x is enough for a blurred backdrop
+    const w=innerWidth*dpr,h=innerHeight*dpr;
     if(c.width!==w||c.height!==h){c.width=w;c.height=h;gl.viewport(0,0,w,h);}
     gl.uniform1f(tLoc,ms*.001);gl.uniform2f(rLoc,w,h);gl.drawArrays(gl.TRIANGLES,0,6);
-    requestAnimationFrame(frame);}
+  }
   requestAnimationFrame(frame);
 })();
 const api = async (u,o) => { const t=performance.now(); const r=await fetch(u,o); const j=await r.json();

@@ -63,6 +63,9 @@ Local exercise of the remaining external tools:
   `MISSING_CREDENTIAL` for `DEEPSEEK_API_KEY` — a user-owned credential.
   Features are mapped into quillancode (profiles, ACP, headless, plugins, MCP).
 - `quillancode external dsh|qwen` exposes both probes as JSON checks.
+- Visual layer: WebGL matrix rain is background-only (30fps, 1× DPR); explorer,
+  agent and editor each carry independent holographic shader layers (data lattice,
+  neural pulse, chromatic ghost text). Verified via CDP screenshot and console-error capture.
 - BYO paths are also exposed inside the IDE settings panel (`Provider · model ·
   key`) with `quillancode guide qwen/deepseek/opencode` hints; no generation is
   claimed until the user supplies credentials.
