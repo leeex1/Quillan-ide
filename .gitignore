@@ -18,3 +18,4 @@ desktop/dist/
 desktop/npm-debug.log
 scripts/electron_ui.png
 capture_*.png
+qc_smoke_*
