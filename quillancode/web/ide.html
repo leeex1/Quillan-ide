@@ -15,6 +15,15 @@
     background-image:linear-gradient(#22d3ee0a 1px,transparent 1px),linear-gradient(90deg,#7c5cff0a 1px,transparent 1px);
     background-size:44px 44px;animation:drift 24s linear infinite}
   @keyframes drift{to{background-position:44px 44px,44px 44px}}
+  body::after{background:radial-gradient(circle at 16% 10%,#7c5cff26,transparent 36%),
+    radial-gradient(circle at 86% 84%,#22d3ee1f,transparent 40%),
+    radial-gradient(circle at 50% 50%,#dc143c0d,transparent 55%)}
+  header{box-shadow:0 1px 0 #7c5cff55,0 6px 24px #0007}
+  .activity button.active{box-shadow:0 0 14px #22d3ee44,inset 0 0 10px #7c5cff33}
+  .tab.active{box-shadow:inset 0 2px var(--accent2),0 0 16px #7c5cff33}
+  aside,section{background:linear-gradient(180deg,#12182699,#0d111b99)}
+  footer{background:linear-gradient(90deg,#171229,#111827,#0f1a2b);border-top-color:#3b2f6b;box-shadow:0 -3px 18px #0006}
+  .hud-card{box-shadow:inset 0 1px #ffffff10,0 6px 18px #0006}
   body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
     background:radial-gradient(circle at 18% 12%,#7c5cff1a,transparent 38%),
                radial-gradient(circle at 82% 88%,#22d3ee14,transparent 42%)}
@@ -80,12 +89,28 @@
   .tab{padding:7px 10px;background:var(--bg);border:1px solid var(--line);border-bottom:none;border-radius:8px 8px 0 0;color:var(--accent2);font-family:ui-monospace,monospace;display:flex;gap:8px;align-items:center;cursor:pointer}
   .tab.active{background:var(--panel2);color:#fff;border-color:var(--accent);box-shadow:inset 0 2px var(--accent2)}
   .tab .x{color:var(--muted);font-size:11px}
-  #viewer{display:none;flex:1;margin:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);overflow:auto;padding:14px}
-  #viewer table{border-collapse:collapse;width:100%;font:12px ui-monospace,monospace}
-  #viewer th,#viewer td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line)}
-  #viewer img,#viewer video{max-width:100%;max-height:60vh}
-  #viewer audio{width:100%}
-  #viewer h3{margin:0 0 10px;color:var(--accent2)}
+  #viewer{display:none;flex:1;margin:10px 12px;border:1px solid #3b2f6b;border-radius:var(--radius);
+    background:linear-gradient(160deg,#141b2b,#0e1421);overflow:auto;padding:0;box-shadow:inset 0 1px #ffffff0a,0 10px 30px #0006}
+  .viewer-head{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);
+    background:linear-gradient(90deg,#1b1636,#131b2c)}
+  .viewer-head h3{margin:0;font-size:14px;color:#fff;letter-spacing:.4px}
+  .vbadge{font:10px ui-monospace,monospace;letter-spacing:1px;padding:4px 9px;border-radius:20px;
+    background:#22d3ee1a;border:1px solid #22d3ee66;color:var(--accent2);text-transform:uppercase}
+  .viewer-sub{font:10px ui-monospace,monospace;color:var(--muted);margin-left:auto}
+  .viewer-stage{padding:18px;min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background-image:linear-gradient(#ffffff05 1px,transparent 1px),linear-gradient(90deg,#ffffff05 1px,transparent 1px);
+    background-size:24px 24px}
+  .viewer-stage img,.viewer-stage video{max-width:100%;max-height:52vh;border-radius:10px;box-shadow:0 16px 50px #000a}
+  .viewer-stage audio{width:min(520px,90%)}
+  #viewer table{border-collapse:collapse;width:100%;font:11px ui-monospace,monospace;margin-top:4px}
+  #viewer th,#viewer td{text-align:left;padding:7px 10px;border-bottom:1px solid #26314d}
+  #viewer th{color:var(--muted);font-size:10px;letter-spacing:1px;text-transform:uppercase}
+  #viewer tr:hover td{background:#ffffff06}
+  .dtype{font:10px ui-monospace,monospace;padding:2px 7px;border-radius:4px;background:#7c5cff22;color:#c4b5fd;border:1px solid #7c5cff55}
+  .sizebar{height:4px;border-radius:4px;background:#2a3552;overflow:hidden;min-width:70px}
+  .sizebar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+  .viewer-meta{padding:0 16px 12px;color:var(--muted);font:11px ui-monospace,monospace}
+  #viewer pre.hex{margin:0;padding:12px 16px;border-top:1px solid var(--line);color:#7f8ba8;font:10px ui-monospace,monospace;white-space:pre-wrap;word-break:break-all}
   .activity{width:46px;background:#0f1422;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:10px}
   .activity button{width:34px;height:34px;padding:0;background:transparent;border-color:transparent;color:var(--muted);font-size:15px}
   .activity button:hover,.activity button.active{background:var(--panel2);border-color:var(--accent);color:var(--accent2)}
@@ -282,24 +307,34 @@ async function showViewer(child,ext){
   if(currentFile && $('textwrap').style.display!=='none') buffers[currentFile]=$('content').value;
   currentFile='';
   $('textwrap').style.display='none'; const v=$('viewer'); v.style.display='block';
-  v.innerHTML='<h3>Reading artifact…</h3>';
+  v.innerHTML='<div class="viewer-head"><span class="vbadge">reading</span><h3>'+esc(child)+'</h3></div>';
   const a=await api('/api/artifact?path='+encodeURIComponent(child));
   const raw='/api/raw?path='+encodeURIComponent(child);
-  let html='<h3>'+esc(a.name)+'</h3><div>kind: <b>'+esc(a.kind)+'</b> · size: '+a.size+' bytes</div>';
-  if(a.meta) html+='<pre>'+esc(JSON.stringify(a.meta,null,2))+'</pre>';
-  if(a.tensors.length) html+='<table><tr><th>Tensor</th><th>Dtype</th><th>Shape</th><th>Bytes</th></tr>'+
-    a.tensors.slice(0,200).map(t=>'<tr><td>'+esc(t.name)+'</td><td>'+esc(t.dtype||'-')+'</td><td>'+
-    esc(JSON.stringify(t.shape||''))+'</td><td>'+(t.bytes||'')+'</td></tr>').join('')+'</table>';
-  if(a.entries.length) html+='<p>'+a.entries.length+' archive entries</p><table><tr><th>Entry</th><th>Bytes</th></tr>'+
-    a.entries.slice(0,100).map(e=>'<tr><td>'+esc(e.name)+'</td><td>'+e.size+'</td></tr>').join('')+'</table>';
-  if(['png','jpg','jpeg','gif','webp','svg'].includes(ext)) html+='<img src="'+raw+'">';
-  else if(['mp3','wav','ogg'].includes(ext)) html+='<audio controls src="'+raw+'"></audio>';
-  else if(['mp4','webm'].includes(ext)) html+='<video controls src="'+raw+'"></video>';
-  else if(ext==='pdf') html+='<embed src="'+raw+'" width="100%" height="60vh">';
-  if(a.notes.length) html+='<p>'+esc(a.notes.join(' · '))+'</p>';
-  if(a.error) html+='<p style="color:var(--danger)">'+esc(a.error)+'</p>';
-  html+='<pre>'+esc((a.hex||'').slice(0,600))+'</pre>';
-  v.innerHTML=html; $('f-file').textContent=child;
+  const maxBytes=Math.max(1,...a.tensors.map(t=>t.bytes||0),...a.entries.map(e=>e.size||0));
+  const head='<div class="viewer-head"><span class="vbadge">'+esc(a.kind)+'</span><h3>'+esc(a.name)+
+    '</h3><span class="viewer-sub">'+a.size.toLocaleString()+' BYTES · '+
+    (a.tensors.length||a.entries.length||0)+' OBJECTS</span></div>';
+  let stage='';
+  if(['png','jpg','jpeg','gif','webp','svg'].includes(ext))
+    stage='<div class="viewer-stage"><img id="artifact-img" src="'+raw+'" alt="'+esc(a.name)+'"><span class="viewer-sub" id="img-dims">loading…</span></div>';
+  else if(['mp3','wav','ogg'].includes(ext)) stage='<div class="viewer-stage"><audio controls src="'+raw+'"></audio></div>';
+  else if(['mp4','webm'].includes(ext)) stage='<div class="viewer-stage"><video controls src="'+raw+'"></video></div>';
+  else if(ext==='pdf') stage='<div class="viewer-stage"><embed src="'+raw+'" width="100%" height="52vh"></div>';
+  else if(a.tensors.length || a.entries.length){
+    stage='<div class="viewer-stage" style="justify-content:flex-start"><table><tr><th>Object</th><th>Dtype</th><th>Shape</th><th>Size</th><th>Share</th></tr>'+
+      (a.tensors.length?a.tensors:a.entries).slice(0,200).map(t=>{
+        const bytes=t.bytes||t.size||0;
+        return '<tr><td>'+esc(t.name)+'</td><td><span class="dtype">'+esc(t.dtype||'blob')+'</span></td><td>'+
+          esc(JSON.stringify(t.shape||''))+'</td><td>'+bytes.toLocaleString()+'</td><td><span class="sizebar"><i style="width:'+
+          Math.max(8,Math.round(100*bytes/maxBytes))+'%"></i></span></td></tr>';}).join('')+'</table></div>';
+  } else stage='<div class="viewer-stage"><span class="vbadge">no inline preview</span></div>';
+  const meta=(a.meta?'<div class="viewer-meta">'+esc(JSON.stringify(a.meta))+'</div>':'')+
+    (a.notes.length?'<div class="viewer-meta">'+esc(a.notes.join(' · '))+'</div>':'')+
+    (a.error?'<div class="viewer-meta" style="color:var(--danger)">'+esc(a.error)+'</div>':'');
+  v.innerHTML=head+stage+meta+'<pre class="hex">'+esc((a.hex||'').slice(0,600))+'</pre>';
+  const img=document.querySelector('#artifact-img');
+  if(img) img.onload=()=>{const d=document.querySelector('#img-dims');if(d)d.textContent=img.naturalWidth+' × '+img.naturalHeight+' px · rendered';};
+  $('f-file').textContent=child;
 }
 async function openFile(child){
   if(currentFile && currentFile!==child && $('textwrap').style.display!=='none')

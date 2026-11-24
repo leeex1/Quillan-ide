@@ -1,5 +1,9 @@
 # quillancode
 
+<!-- QUILLAN-DOCS-PROVENANCE:BEGIN -->
+> **Documentation provenance.** This repo is part of the Quillan-Ronin ecosystem (CrashOverrideX / `leeex1`). Canonical sources live in the root repository: `README.md` (**READ FIRST** — Track A harness-on-frontier vs. Track B native WSP models vs. Track B′ custom Mini) and `docs/MODEL_CARDS.md` (fleet identity, verified facts, open gaps). The large 95–100% benchmark table in the root README is a **harness-on-frontier** result, not a score of any Quillan-owned checkpoint. Creator artifacts (books, music, game demo) have primary-source links in the root README's **Creator and verifiable artifacts** section.
+<!-- QUILLAN-DOCS-PROVENANCE:END -->
+
 Sovereign, provider-agnostic code-assistant CLI/TUI. It does not replace the
 assistants already installed on this machine — it **absorbs their best surfaces**
 into one engine and bridges back to them when their native mode is needed.

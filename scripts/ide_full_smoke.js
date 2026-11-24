@@ -57,13 +57,14 @@ async function main() {
       const png='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9kAAAAASUVORK5CYII=';
       await post('/api/file',{path:img,base64:png});
       await loadTree('.'); await openFile(img); await wait(300);
-      c.imageViewer = !!document.querySelector('#viewer img');
+      c.imageViewer = !!document.querySelector('#viewer img') && document.querySelector('#artifact-img').naturalWidth>0;
       const h=JSON.stringify({weight:{dtype:'F16',shape:[2,2],data_offsets:[0,8]}});
       const b=new Uint8Array(8+h.length+8); new DataView(b.buffer).setBigUint64(0,BigInt(h.length),true);
       for(let i=0;i<h.length;i++)b[8+i]=h.charCodeAt(i);
       await post('/api/file',{path:st,base64:btoa(String.fromCharCode(...b))});
       await loadTree('.'); await openFile(st); await wait(400);
-      c.tensorViewer = document.querySelector('#viewer').textContent.includes('F16');
+      c.tensorViewer = document.querySelector('#viewer').textContent.includes('F16') &&
+        document.querySelectorAll('.sizebar i').length===1;
       c.tabs = document.querySelectorAll('.tab').length>=3;
       document.querySelector('#act-check').click(); await wait(400);
       c.checks = document.querySelector('#problems').textContent.length>3;
