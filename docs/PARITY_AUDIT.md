@@ -66,6 +66,18 @@ Local exercise of the remaining external tools:
 - Visual layer: WebGL matrix rain is background-only (30fps, 1× DPR); explorer,
   agent and editor each carry independent holographic shader layers (data lattice,
   neural pulse, chromatic ghost text). Verified via CDP screenshot and console-error capture.
+- **Accepted limitations (user approved 2026-11-24):**
+  1. `opencode pr <n>` fails with "Make sure gh CLI is installed and authenticated"
+     even when `gh auth status` reports `leeex1` authenticated and a real public
+     PR (#1 of octocat/Hello-World) is checked out from a fresh clone. quillancode's
+     local bare-origin PR checkout is verified and used instead.
+  2. `opencode plugin left-pad` writes to `C:\.opencode\opencode.json` even with a
+     temp HOME/XDG_CONFIG_HOME. The mutation was reverted to `{"plugin":[]}`;
+     quillancode's install is verified in a real temp sandbox.
+  3. `uninstall` is destructive on both CLIs, so only help/dry-run semantics were
+     compared; no uninstall was executed.
+  Qwen and DeepSeek generation remain BYO-only (user has neither plan); mocked
+  credential probes are documented above and no live generation is claimed.
 - BYO paths are also exposed inside the IDE settings panel (`Provider · model ·
   key`) with `quillancode guide qwen/deepseek/opencode` hints; no generation is
   claimed until the user supplies credentials.

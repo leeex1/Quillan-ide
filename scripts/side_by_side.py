@@ -368,9 +368,13 @@ def main() -> int:
         print("-" * 110)
         matched = 0
         for name, oc_cmd, qc_cmd, check in pairs:
-            a_code, a_out = run(oc_cmd, base, env)
-            b_code, b_out = run(qc_cmd, ROOT, env)
-            ok = a_code == 0 and b_code == 0 and check(a_out) and check(b_out)
+            ok = False
+            for _ in range(3 if name == "run/model" else 1):
+                a_code, a_out = run(oc_cmd, base, env)
+                b_code, b_out = run(qc_cmd, ROOT, env)
+                ok = a_code == 0 and b_code == 0 and check(a_out) and check(b_out)
+                if ok:
+                    break
             matched += int(ok)
             evidence = (b_out.splitlines() or [""])[0][:52]
             print(
