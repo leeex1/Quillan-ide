@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>quillancode IDE</title>
+<style>
+  :root{
+    --bg:#0d1017; --panel:#131824; --panel2:#192031; --line:#27304a;
+    --text:#dce4f7; --muted:#7f8ba8; --accent:#7c5cff; --accent2:#22d3ee;
+    --ok:#34d399; --danger:#fb7185; --radius:10px;
+  }
+  *{box-sizing:border-box}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:linear-gradient(#22d3ee0a 1px,transparent 1px),linear-gradient(90deg,#7c5cff0a 1px,transparent 1px);
+    background-size:44px 44px;animation:drift 24s linear infinite}
+  @keyframes drift{to{background-position:44px 44px,44px 44px}}
+  body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:radial-gradient(circle at 18% 12%,#7c5cff1a,transparent 38%),
+               radial-gradient(circle at 82% 88%,#22d3ee14,transparent 42%)}
+  body{margin:0;height:100vh;background:var(--bg);color:var(--text);
+       font:13px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+       display:grid;grid-template-rows:46px 1fr 26px;overflow:hidden}
+  button,select,input,textarea{font:inherit;color:inherit}
+  button{cursor:pointer;border:1px solid var(--line);background:var(--panel2);
+         border-radius:7px;padding:6px 12px;transition:.15s}
+  button:hover{border-color:var(--accent2);background:#232c44}
+  button.primary{background:linear-gradient(135deg,var(--accent),#4f46e5);border-color:transparent;color:#fff;font-weight:600}
+  button.primary:hover{filter:brightness(1.15);transform:translateY(-1px);box-shadow:0 4px 14px #7c5cff55}
+  button:active{transform:translateY(0)}
+  header{display:flex;align-items:center;gap:10px;padding:0 14px;
+    background:linear-gradient(90deg,#171229,#111827 60%,#0f1a2b);
+    border-bottom:1px solid #3b2f6b;box-shadow:0 4px 18px #0005}
+  .crumb{color:#9aa7c7}
+  .brand{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:.4px;background:linear-gradient(90deg,var(--accent2),var(--accent));
+         -webkit-background-clip:text;background-clip:text;color:transparent;font-size:16px}
+  .brand img{width:27px;height:27px;filter:drop-shadow(0 0 8px #dc143caa);animation:glow 4s ease-in-out infinite}
+  @keyframes glow{0%,100%{filter:drop-shadow(0 0 6px #dc143c88)}50%{filter:drop-shadow(0 0 14px #7c5cffcc)}}
+  .branding{padding:12px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:center;color:var(--muted);font-size:11px;letter-spacing:.6px}
+  .branding img{width:34px;height:34px}
+  .banner{width:100%;max-height:92px;object-fit:cover;border-radius:7px;margin-bottom:8px;display:block}
+  .crumb{color:var(--muted);font-family:ui-monospace,monospace;font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hud-chip{font:10px ui-monospace,monospace;letter-spacing:1px;padding:4px 8px;border-radius:5px;
+    border:1px solid #3b2f6b;background:#7c5cff14;color:#c4b5fd;text-transform:uppercase}
+  .hud-chip.live{border-color:#22d3ee55;background:#22d3ee12;color:var(--accent2)}
+  .hud-chip.live::before{content:"●";margin-right:5px;animation:pulse 1.8s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+  .hud-card{margin:0 12px 10px;padding:10px;border:1px solid #2c3a5c;border-radius:9px;
+    background:linear-gradient(145deg,#131b2c,#101623);box-shadow:inset 0 1px #ffffff08}
+  .hud-card .line{display:flex;justify-content:space-between;font:10px ui-monospace,monospace;color:var(--muted);margin:3px 0}
+  .hud-card .line b{color:var(--accent2);font-weight:600}
+  .hud-card .bar{height:3px;background:#22304d;border-radius:3px;overflow:hidden;margin-top:7px}
+  .hud-card .bar i{display:block;height:100%;width:62%;background:linear-gradient(90deg,var(--accent),var(--accent2));box-shadow:0 0 8px var(--accent2)}
+  .editor-hud{display:flex;justify-content:space-between;padding:5px 14px;background:#11182799;border-bottom:1px solid #27304a;
+    font:10px ui-monospace,monospace;letter-spacing:1px;color:var(--muted)}
+  select{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:6px 8px;max-width:190px}
+  header,main,footer{position:relative;z-index:1}
+  main{display:grid;grid-template-columns:250px 1fr 360px;min-height:0}
+  aside,section{min-width:0;min-height:0;display:flex;flex-direction:column}
+  aside{background:var(--panel);border-right:1px solid var(--line)}
+  .panel-title{padding:12px 14px 8px;color:var(--muted);font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700}
+  .nav{display:flex;gap:6px;align-items:center;padding:0 12px 8px;color:var(--muted);font-family:ui-monospace,monospace;font-size:11px}
+  .nav button{padding:3px 8px;font-size:11px}
+  #pathlabel{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #filter{margin:0 12px 10px;background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:7px 9px;outline:none}
+  #filter:focus{border-color:var(--accent2)}
+  #tree{overflow:auto;flex:1;padding:0 6px 12px}
+  .row{padding:5px 9px;border-radius:6px;cursor:pointer;display:flex;gap:8px;align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row:hover{background:var(--panel2)}
+  .row.active{background:linear-gradient(90deg,#2b2350,#1d2440);color:#fff;box-shadow:inset 2px 0 var(--accent2)}
+  .row[data-ext="code"]{color:#7dd3fc}.row[data-ext="image"]{color:#f9a8d4}
+  .row[data-ext="tensor"]{color:#fbbf24}.row[data-ext="doc"]{color:#a7f3d0}
+  .row[data-ext="media"]{color:#c4b5fd}
+  .dir{color:var(--accent2)}
+  section.editor{background:var(--bg)}
+  #tabs{display:flex;gap:4px;padding:8px 12px 0;background:var(--panel);border-bottom:1px solid var(--line)}
+  .tab{padding:7px 10px;background:var(--bg);border:1px solid var(--line);border-bottom:none;border-radius:8px 8px 0 0;color:var(--accent2);font-family:ui-monospace,monospace;display:flex;gap:8px;align-items:center;cursor:pointer}
+  .tab.active{background:var(--panel2);color:#fff;border-color:var(--accent);box-shadow:inset 0 2px var(--accent2)}
+  .tab .x{color:var(--muted);font-size:11px}
+  #viewer{display:none;flex:1;margin:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);overflow:auto;padding:14px}
+  #viewer table{border-collapse:collapse;width:100%;font:12px ui-monospace,monospace}
+  #viewer th,#viewer td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line)}
+  #viewer img,#viewer video{max-width:100%;max-height:60vh}
+  #viewer audio{width:100%}
+  #viewer h3{margin:0 0 10px;color:var(--accent2)}
+  .editor-wrap{display:flex;flex:1;min-height:0;margin:10px 12px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--panel)}
+  #gutter{width:48px;padding:12px 8px;text-align:right;color:#4c5878;background:var(--panel);border-right:1px solid var(--line);font:12px/1.55 ui-monospace,monospace;overflow:hidden;white-space:pre}
+  #content{flex:1;resize:none;border:0;outline:none;background:var(--panel);padding:12px 14px;font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:2}
+  .hint{padding:0 14px 8px;color:var(--muted);font-size:11px}
+  aside.agent{background:var(--panel);border-left:1px solid var(--line)}
+  #setup{padding:0 12px 10px;color:var(--muted)}
+  #setup summary{cursor:pointer;font-size:11px;letter-spacing:1px;text-transform:uppercase;font-weight:700}
+  #setup .grid{display:grid;gap:6px;margin-top:8px}
+  #setup input{background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:7px 9px;outline:none}
+  #chat{flex:1;overflow:auto;padding:6px 12px;display:flex;flex-direction:column;gap:10px}
+  .msg{padding:11px 13px;border-radius:9px;background:linear-gradient(180deg,#1a2132,#151b2a);
+    border:1px solid var(--line);border-left:3px solid var(--accent2);white-space:pre-wrap;word-break:break-word;
+    box-shadow:0 3px 10px #0003}
+  .msg.user{background:linear-gradient(180deg,#2a2352,#201b42);border-color:#3b3170;border-left-color:var(--accent)}
+  .msg .who{font-size:10px;letter-spacing:1px;color:var(--muted);display:block;margin-bottom:5px;text-transform:uppercase}
+  .composer{padding:10px 12px;border-top:1px solid var(--line);display:grid;gap:8px}
+  #prompt{width:100%;min-height:78px;resize:vertical;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;outline:none}
+  #prompt:focus{border-color:var(--accent)}
+  .actions{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{font-size:11px;padding:4px 8px}
+  footer{display:flex;align-items:center;gap:16px;padding:0 14px;background:var(--panel);border-top:1px solid var(--line);color:var(--muted);font-size:11px}
+  footer span b{color:var(--text);font-weight:600}
+  #toast{position:fixed;right:18px;bottom:40px;background:var(--panel2);border:1px solid var(--accent2);
+         border-radius:8px;padding:9px 14px;opacity:0;transition:.25s;pointer-events:none;z-index:9}
+  #toast.show{opacity:1}
+  #palette{position:fixed;inset:0;background:#05070ccc;display:none;align-items:flex-start;justify-content:center;z-index:20;padding-top:12vh;backdrop-filter:blur(3px)}
+  #palette.open{display:flex}
+  .palette-box{width:min(640px,90vw);background:var(--panel);border:1px solid var(--accent);border-radius:12px;box-shadow:0 24px 80px #000a;overflow:hidden}
+  .palette-box input{width:100%;background:var(--bg);border:0;border-bottom:1px solid var(--line);padding:14px 16px;outline:none;font-size:15px}
+  .palette-box .res{padding:8px 16px;cursor:pointer;font-family:ui-monospace,monospace;color:var(--muted);border-bottom:1px solid #202740}
+  .palette-box .res:hover{background:var(--panel2);color:var(--text)}
+  .palette-hint{padding:7px 16px;color:var(--muted);font-size:11px}
+  ::-webkit-scrollbar{width:9px}::-webkit-scrollbar-thumb{background:#2a3350;border-radius:9px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><img src="/assets/quillan-logo.svg" alt="">quillancode</div>
+  <div class="crumb" id="crumb">workspace</div>
+  <span class="hud-chip live">system online</span>
+  <span class="hud-chip" id="clock">--:--:--</span>
+  <select id="provider" title="Provider"></select>
+  <button id="newfile">＋ New file</button>
+  <button id="save" class="primary">Save</button>
+</header>
+<main>
+  <aside>
+    <div class="panel-title">Explorer</div>
+    <div class="hud-card">
+      <div class="line"><span>SESSION</span><b>QCI-4066</b></div>
+      <div class="line"><span>NODES</span><b>34 COUNCIL / 35 SWARM</b></div>
+      <div class="line"><span>INDEX</span><b id="hud-files">0 FILES</b></div>
+      <div class="bar"><i></i></div>
+    </div>
+    <div class="nav"><button id="up">↑ Up</button><span id="pathlabel">.</span></div>
+    <input id="filter" placeholder="Filter files…  (Ctrl+P quick open)">
+    <div id="tree"></div>
+    <div class="branding"><img src="/assets/ronin-badge.svg" alt=""><span>QUILLAN-RONIN<br>SOVEREIGN EDITION</span></div>
+  </aside>
+  <section class="editor">
+    <div class="editor-hud"><span>◈ NEURAL WORKSPACE</span><span id="hud-latency">LATENCY 0ms</span><span>QCI//ONLINE</span></div>
+    <div id="tabs"></div>
+    <div id="viewer"></div>
+    <div class="editor-wrap" id="textwrap"><div id="gutter">1</div><textarea id="content" spellcheck="false" placeholder="Select a file to begin"></textarea></div>
+    <div class="hint">Ctrl+S to save · files stay inside the workspace</div>
+  </section>
+  <aside class="agent">
+    <div class="panel-title">Agent <span class="hud-chip live" style="float:right">neural link</span></div>
+    <details id="setup">
+      <summary>Provider · model · key</summary>
+      <div class="grid">
+        <input id="newprovider" placeholder="Provider name (e.g. google-my-key)">
+        <input id="model" placeholder="Model ID (e.g. gemini-2.5-flash)">
+        <input id="baseurl" placeholder="Base URL (OpenAI-compatible)">
+        <input id="apikey" type="password" placeholder="API key (stored locally, masked)">
+        <button id="connect" class="primary">Connect / save</button>
+        <span id="keystatus"></span>
+        <span style="font-size:10px;color:var(--muted)">BYO login: <code>quillancode guide qwen</code> · <code>quillancode guide deepseek</code> · <code>quillancode guide opencode</code>. No generation is claimed until credentials exist.</span>
+      </div>
+    </details>
+    <div id="chat"><div class="msg"><img class="banner" src="/assets/quillan-banner.svg" alt="quillancode banner"><span class="who">system</span>Ask me to explain, edit, review, or run checks.</div></div>
+    <div class="composer">
+      <textarea id="prompt" placeholder="Ask quillancode…"></textarea>
+      <div class="actions">
+        <button id="send" class="primary">Send</button>
+        <button class="chip" data-q="Review this file and list concrete issues">Review</button>
+        <button class="chip" data-q="Explain this file concisely">Explain</button>
+        <button class="chip" data-q="Write tests for the current file">Tests</button>
+        <button id="clear" class="chip">Clear</button>
+      </div>
+    </div>
+  </aside>
+</main>
+<footer>
+  <span>cwd <b id="f-cwd">—</b></span><span>provider <b id="f-provider">—</b></span>
+  <span>file <b id="f-file">none</b></span><span id="f-status">ready</span>
+</footer>
+<div id="toast"></div>
+<div id="palette"><div class="palette-box"><input id="pquery" placeholder="Quick open — type a file name…"><div id="pres"></div><div class="palette-hint">Enter to open · Esc to close</div></div></div>
+<script>
+const $ = id => document.getElementById(id);
+const api = async (u,o) => { const t=performance.now(); const r=await fetch(u,o); const j=await r.json();
+  const el=document.querySelector('#hud-latency'); if(el)el.textContent='LATENCY '+Math.round(performance.now()-t)+'ms'; return j; };
+setInterval(()=>{const el=document.querySelector('#clock');if(el)el.textContent=new Date().toLocaleTimeString();},1000);
+let currentFile = '', currentPath = '.', provider = '', activeFile = '';
+let openTabs = [];
+let dirty = new Set();
+const esc = s => String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+function toast(t){ const el=$('toast'); el.textContent=t; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),1800); }
+function addMsg(who,text){ const d=document.createElement('div'); d.className='msg '+(who==='you'?'user':'');
+  d.innerHTML='<span class="who">'+who+'</span>'+String(text).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  $('chat').appendChild(d); $('chat').scrollTop=$('chat').scrollHeight; }
+async function loadTree(path){
+  const d = await api('/api/files?path='+encodeURIComponent(path));
+  const f = $('filter').value.toLowerCase();
+  const kind=n=>{const e=n.split('.').pop().toLowerCase();
+    if(['png','jpg','jpeg','gif','webp','svg'].includes(e))return ['image','▣'];
+    if(['mp3','wav','ogg','mp4','webm'].includes(e))return ['media','♪'];
+    if(['pt','pth','safetensors','gguf','npy','npz','onnx','bin'].includes(e))return ['tensor','▦'];
+    if(['md','txt','json','toml','yaml','yml'].includes(e))return ['doc','≡'];
+    return ['code','◆'];};
+  $('tree').innerHTML = d.items.filter(i=>i.name.toLowerCase().includes(f)).map(i=>{
+    const k=kind(i.name);
+    return '<div class="row '+(i.dir?'dir':'')+'" data-ext="'+(i.dir?'doc':k[0])+'" data-name="'+esc(i.name)+'" data-dir="'+i.dir+'">'+
+    (i.dir?'▸ ':(k[1]+' '))+esc(i.name)+'</div>';}).join('');
+  currentPath = path; $('pathlabel').textContent = path;
+  const cnt=document.querySelector('#hud-files'); if(cnt)cnt.textContent=d.items.length+' FILES';
+}
+$('up').onclick = () => {
+  if(currentPath === '.') return;
+  const parts = currentPath.split('/'); parts.pop();
+  loadTree(parts.join('/') || '.');
+};
+function renderTabs(){
+  $('tabs').innerHTML = openTabs.map(p=>
+    '<div class="tab'+(p===activeFile?' active':'')+'" data-p="'+esc(p)+'">'+(dirty.has(p)?'● ':'')+esc(p.split('/').pop())+
+    ' <span class="x" data-x="'+esc(p)+'">×</span></div>').join('');
+}
+$('tabs').onclick = e => {
+  const x = e.target.closest('[data-x]');
+  if(x){ const p=x.dataset.x; openTabs=openTabs.filter(t=>t!==p);
+    renderTabs(); if(activeFile===p){ activeFile=openTabs[openTabs.length-1]||''; if(activeFile) openFile(activeFile); }
+    return; }
+  const tab=e.target.closest('.tab'); if(tab) openFile(tab.dataset.p);
+};
+const BINARY_EXT = ['png','jpg','jpeg','gif','webp','svg','mp3','wav','ogg','mp4','webm','pdf',
+  'pt','pth','ckpt','safetensors','gguf','ggml','npy','npz','onnx','bin','model'];
+async function showViewer(child,ext){
+  $('textwrap').style.display='none'; const v=$('viewer'); v.style.display='block';
+  v.innerHTML='<h3>Reading artifact…</h3>';
+  const a=await api('/api/artifact?path='+encodeURIComponent(child));
+  const raw='/api/raw?path='+encodeURIComponent(child);
+  let html='<h3>'+esc(a.name)+'</h3><div>kind: <b>'+esc(a.kind)+'</b> · size: '+a.size+' bytes</div>';
+  if(a.meta) html+='<pre>'+esc(JSON.stringify(a.meta,null,2))+'</pre>';
+  if(a.tensors.length) html+='<table><tr><th>Tensor</th><th>Dtype</th><th>Shape</th><th>Bytes</th></tr>'+
+    a.tensors.slice(0,200).map(t=>'<tr><td>'+esc(t.name)+'</td><td>'+esc(t.dtype||'-')+'</td><td>'+
+    esc(JSON.stringify(t.shape||''))+'</td><td>'+(t.bytes||'')+'</td></tr>').join('')+'</table>';
+  if(a.entries.length) html+='<p>'+a.entries.length+' archive entries</p><table><tr><th>Entry</th><th>Bytes</th></tr>'+
+    a.entries.slice(0,100).map(e=>'<tr><td>'+esc(e.name)+'</td><td>'+e.size+'</td></tr>').join('')+'</table>';
+  if(['png','jpg','jpeg','gif','webp','svg'].includes(ext)) html+='<img src="'+raw+'">';
+  else if(['mp3','wav','ogg'].includes(ext)) html+='<audio controls src="'+raw+'"></audio>';
+  else if(['mp4','webm'].includes(ext)) html+='<video controls src="'+raw+'"></video>';
+  else if(ext==='pdf') html+='<embed src="'+raw+'" width="100%" height="60vh">';
+  if(a.notes.length) html+='<p>'+esc(a.notes.join(' · '))+'</p>';
+  if(a.error) html+='<p style="color:var(--danger)">'+esc(a.error)+'</p>';
+  html+='<pre>'+esc((a.hex||'').slice(0,600))+'</pre>';
+  v.innerHTML=html; $('f-file').textContent=child;
+}
+async function openFile(child){
+  if(!openTabs.includes(child)) openTabs.push(child);
+  activeFile=child; renderTabs();
+  const ext=child.split('.').pop().toLowerCase();
+  if(BINARY_EXT.includes(ext)) return showViewer(child,ext);
+  const d=await api('/api/file?path='+encodeURIComponent(child));
+  if(d.content!==undefined){ currentFile=child; $('viewer').style.display='none';
+    $('textwrap').style.display='flex'; $('content').value=d.content;
+    updateGutter(); $('f-file').textContent=child; }
+}
+$('tree').onclick = async e => {
+  const row=e.target.closest('.row'); if(!row) return;
+  const name=row.dataset.name;
+  const child = currentPath==='.' ? name : currentPath+'/'+name;
+  if(row.dataset.dir==='true') return loadTree(child);
+  openFile(child);
+};
+function updateGutter(){ const n=$('content').value.split('\n').length;
+  $('gutter').textContent=Array.from({length:n},(_,i)=>i+1).join('\n'); $('gutter').scrollTop=$('content').scrollTop; }
+$('content').addEventListener('input',()=>{ updateGutter(); if(activeFile){dirty.add(activeFile);renderTabs();} });
+$('content').addEventListener('scroll',()=>$('gutter').scrollTop=$('content').scrollTop);
+$('filter').addEventListener('input',()=>loadTree(currentPath));
+async function save(){
+  if(!currentFile){ toast('Select or create a file first'); return; }
+  const r=await api('/api/file',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({path:currentFile,content:$('content').value})});
+  if(r.ok) dirty.delete(currentFile); renderTabs();
+  toast(r.ok?'Saved '+currentFile:('Error: '+r.error)); $('f-status').textContent=r.ok?'saved':'error';
+}
+$('save').onclick=save;
+document.addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();save();} });
+$('newfile').onclick=async()=>{ const name=prompt('New file name (relative to workspace):'); if(!name)return;
+  const r=await api('/api/file',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({path:name,content:''})}); toast(r.ok?'Created '+name:('Error: '+r.error)); loadTree(currentPath); };
+async function send(text){
+  const q=text||$('prompt').value.trim(); if(!q)return; $('prompt').value='';
+  addMsg('you',q); $('f-status').textContent='working…';
+  const r=await api('/v1/chat',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({message:q,provider:provider||undefined})});
+  addMsg('assistant',r.answer||r.error||JSON.stringify(r)); $('f-status').textContent='ready';
+}
+$('send').onclick=()=>send();
+$('prompt').addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();} });
+document.querySelectorAll('.chip[data-q]').forEach(b=>b.onclick=()=>send(b.dataset.q));
+$('clear').onclick=()=>{ $('chat').innerHTML='<div class="msg"><span class="who">system</span>Conversation cleared.</div>'; };
+let searchTimer;
+async function runPalette(){
+  const q=$('pquery').value.trim();
+  if(!q){ $('pres').innerHTML=''; return; }
+  const d=await api('/api/search?q='+encodeURIComponent(q));
+  $('pres').innerHTML=d.results.map(p=>'<div class="res" data-p="'+esc(p)+'">'+esc(p)+'</div>').join('')||'<div class="palette-hint">No matches</div>';
+}
+$('pquery').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(runPalette,140);});
+$('pres').onclick=e=>{const r=e.target.closest('.res');if(!r)return;$('palette').classList.remove('open');openFile(r.dataset.p);};
+$('pquery').addEventListener('keydown',e=>{if(e.key==='Enter'){const r=$('pres').querySelector('.res');if(r)r.click();}});
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='p'){e.preventDefault();$('palette').classList.add('open');$('pquery').focus();}
+  if(e.key==='Escape'&&$('palette').classList.contains('open')){$('palette').classList.remove('open');}
+});
+async function loadSettings(){
+  const s=await api('/api/settings'); provider=s.provider||'';
+  $('model').value=s.model||'';
+  $('provider').innerHTML=s.providers.map(p=>'<option'+(p.name===provider?' selected':'')+'>'+p.name+'</option>').join('');
+  const withKey=s.providers.filter(p=>p.key_set).map(p=>p.name);
+  $('keystatus').textContent=(withKey.length?'Keys ready: '+withKey.join(', '):'No keys detected — add one above or use OpenCode free tier')+
+    (s.stored_keys.length?' · stored: '+s.stored_keys.join(', '):'');
+  $('f-provider').textContent=provider;
+}
+$('provider').onchange=e=>{provider=e.target.value;$('f-provider').textContent=provider;};
+$('connect').onclick=async()=>{
+  const payload={provider:$('newprovider').value.trim()||provider, model:$('model').value.trim(),
+    base_url:$('baseurl').value.trim(), api_key:$('apikey').value.trim(), save:true};
+  const r=await api('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  toast(r.ok?'Connected '+payload.provider:('Error: '+r.error)); $('apikey').value='';
+  if(r.ok) loadSettings();
+};
+if(window.quillancode){
+  window.quillancode.onSave(()=>save());
+  window.quillancode.onQuickOpen(()=>{$('palette').classList.add('open');$('pquery').focus();});
+  window.quillancode.onFocusPrompt(()=>$('prompt').focus());
+  window.quillancode.onClearChat(()=>$('clear').click());
+  window.quillancode.onReview(()=>send('Review this file and list concrete issues'));
+  window.quillancode.onWorkspaceChanged(async()=>{
+    const w=await api('/api/workspace'); $('f-cwd').textContent=w.cwd; $('crumb').textContent=w.cwd;
+    loadTree('.');
+  });
+}
+(async()=>{
+  const w=await api('/api/workspace'); $('f-cwd').textContent=w.cwd; $('crumb').textContent=w.cwd;
+  await loadSettings(); loadTree('.');
+})();
+</script>
+</body>
+</html>

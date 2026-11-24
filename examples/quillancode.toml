@@ -1,0 +1,57 @@
+# Example quillancode workspace config.
+# Copy to your workspace root as quillancode.toml, then set the env vars below.
+
+[provider]
+default = "openai"
+
+[providers.openai]
+kind = "openai_compat"
+base_url = "https://api.openai.com/v1"
+model = "gpt-4o-mini"
+api_key_env = "OPENAI_API_KEY"
+
+[providers.opencode]
+kind = "openai_compat"
+base_url = "https://api.opencode.ai/v1"
+model = "opencode/general"
+api_key_env = "OPENCODE_API_KEY"
+
+[providers.deepseek]
+kind = "openai_compat"
+base_url = "https://api.deepseek.com/v1"
+model = "deepseek-chat"
+api_key_env = "DEEPSEEK_API_KEY"
+
+[providers.ollama]
+kind = "openai_compat"
+base_url = "http://localhost:11434/v1"
+model = "qwen2.5-coder"
+
+[permissions]
+default = "ask"
+blocked_patterns = ["bash:rm -rf"]
+
+[permissions.rules]
+read_file = "allow"
+list_dir = "allow"
+glob = "allow"
+grep = "allow"
+write_file = "ask"
+edit_file = "ask"
+bash = "ask"
+rewind = "ask"
+
+[council]
+agents = 3
+judge = "default"
+rounds = 1
+
+[settings]
+compact_threshold = 0.8
+checkpoint_on_write = true
+max_tool_steps = 20
+telemetry = true
+
+# [mcp.servers.filesystem]
+# command = "npx"
+# args = ["-y", "@modelcontextprotocol/server-filesystem", "."]
