@@ -97,6 +97,8 @@
   .vbadge{font:10px ui-monospace,monospace;letter-spacing:1px;padding:4px 9px;border-radius:20px;
     background:#22d3ee1a;border:1px solid #22d3ee66;color:var(--accent2);text-transform:uppercase}
   .viewer-sub{font:10px ui-monospace,monospace;color:var(--muted);margin-left:auto}
+  .viewer-actions{display:flex;gap:5px;margin-left:8px}
+  .viewer-actions button{padding:3px 8px;font-size:10px}
   .viewer-stage{padding:18px;min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;
     background-image:linear-gradient(#ffffff05 1px,transparent 1px),linear-gradient(90deg,#ffffff05 1px,transparent 1px);
     background-size:24px 24px}
@@ -309,31 +311,67 @@ async function showViewer(child,ext){
   $('textwrap').style.display='none'; const v=$('viewer'); v.style.display='block';
   v.innerHTML='<div class="viewer-head"><span class="vbadge">reading</span><h3>'+esc(child)+'</h3></div>';
   const a=await api('/api/artifact?path='+encodeURIComponent(child));
+  const tensors=Array.isArray(a.tensors)?a.tensors:[];
+  const entries=Array.isArray(a.entries)?a.entries:[];
+  const notes=Array.isArray(a.notes)?a.notes:[];
   const raw='/api/raw?path='+encodeURIComponent(child);
-  const maxBytes=Math.max(1,...a.tensors.map(t=>t.bytes||0),...a.entries.map(e=>e.size||0));
-  const head='<div class="viewer-head"><span class="vbadge">'+esc(a.kind)+'</span><h3>'+esc(a.name)+
-    '</h3><span class="viewer-sub">'+a.size.toLocaleString()+' BYTES · '+
-    (a.tensors.length||a.entries.length||0)+' OBJECTS</span></div>';
+  const maxBytes=Math.max(1,...tensors.map(t=>t.bytes||0),...entries.map(e=>e.size||0));
+  const head='<div class="viewer-head"><span class="vbadge">'+esc(a.kind||'unknown')+'</span><h3>'+esc(a.name||child)+
+    '</h3><span class="viewer-sub">'+Number(a.size||0).toLocaleString()+' BYTES · '+
+    (tensors.length||entries.length||0)+' OBJECTS</span> '+
+    '<span class="viewer-actions"><button id="vc-copy-image" style="display:none">Copy image</button>'+
+    '<button id="vc-copy-table" style="display:none">Copy table</button>'+
+    '<button id="vc-copy-raw">Copy raw</button><button id="vc-copy-path">Copy path</button></span></div>';
   let stage='';
   if(['png','jpg','jpeg','gif','webp','svg'].includes(ext))
     stage='<div class="viewer-stage"><img id="artifact-img" src="'+raw+'" alt="'+esc(a.name)+'"><span class="viewer-sub" id="img-dims">loading…</span></div>';
   else if(['mp3','wav','ogg'].includes(ext)) stage='<div class="viewer-stage"><audio controls src="'+raw+'"></audio></div>';
   else if(['mp4','webm'].includes(ext)) stage='<div class="viewer-stage"><video controls src="'+raw+'"></video></div>';
   else if(ext==='pdf') stage='<div class="viewer-stage"><embed src="'+raw+'" width="100%" height="52vh"></div>';
-  else if(a.tensors.length || a.entries.length){
+  else if(tensors.length || entries.length){
     stage='<div class="viewer-stage" style="justify-content:flex-start"><table><tr><th>Object</th><th>Dtype</th><th>Shape</th><th>Size</th><th>Share</th></tr>'+
-      (a.tensors.length?a.tensors:a.entries).slice(0,200).map(t=>{
+      (tensors.length?tensors:entries).slice(0,200).map(t=>{
         const bytes=t.bytes||t.size||0;
         return '<tr><td>'+esc(t.name)+'</td><td><span class="dtype">'+esc(t.dtype||'blob')+'</span></td><td>'+
           esc(JSON.stringify(t.shape||''))+'</td><td>'+bytes.toLocaleString()+'</td><td><span class="sizebar"><i style="width:'+
           Math.max(8,Math.round(100*bytes/maxBytes))+'%"></i></span></td></tr>';}).join('')+'</table></div>';
   } else stage='<div class="viewer-stage"><span class="vbadge">no inline preview</span></div>';
   const meta=(a.meta?'<div class="viewer-meta">'+esc(JSON.stringify(a.meta))+'</div>':'')+
-    (a.notes.length?'<div class="viewer-meta">'+esc(a.notes.join(' · '))+'</div>':'')+
+    (notes.length?'<div class="viewer-meta">'+esc(notes.join(' · '))+'</div>':'')+
     (a.error?'<div class="viewer-meta" style="color:var(--danger)">'+esc(a.error)+'</div>':'');
   v.innerHTML=head+stage+meta+'<pre class="hex">'+esc((a.hex||'').slice(0,600))+'</pre>';
   const img=document.querySelector('#artifact-img');
-  if(img) img.onload=()=>{const d=document.querySelector('#img-dims');if(d)d.textContent=img.naturalWidth+' × '+img.naturalHeight+' px · rendered';};
+  if(img){ img.onload=()=>{const d=document.querySelector('#img-dims');if(d)d.textContent=img.naturalWidth+' × '+img.naturalHeight+' px · rendered';};
+    const ci=document.querySelector('#vc-copy-image'); if(ci) ci.style.display='inline-block'; }
+  if(tensors.length||entries.length){const ct=document.querySelector('#vc-copy-table');if(ct)ct.style.display='inline-block';}
+  const cimg=document.querySelector('#vc-copy-image');
+  if(cimg) cimg.onclick=async()=>{
+    if(!img){toast('No image loaded');return;}
+    const cv=document.createElement('canvas');cv.width=img.naturalWidth;cv.height=img.naturalHeight;
+    cv.getContext('2d').drawImage(img,0,0);
+    if(window.quillancode&&window.quillancode.copyImage) await window.quillancode.copyImage(cv.toDataURL('image/png'));
+    else if(navigator.clipboard&&navigator.clipboard.write) await navigator.clipboard.write([new ClipboardItem({'image/png':await new Promise(r=>cv.toBlob(r,'image/png'))})]);
+    toast('Image copied to clipboard');
+  };
+  const ctab=document.querySelector('#vc-copy-table');
+  if(ctab) ctab.onclick=async()=>{
+    const rows=(tensors.length?tensors:entries).map(t=>[t.name,t.dtype||'',JSON.stringify(t.shape||''),t.bytes||t.size||0].join('\t'));
+    const tsv=['name\tdtype\tshape\tbytes',...rows].join('\n');
+    if(window.quillancode&&window.quillancode.copyText) await window.quillancode.copyText(tsv);
+    toast('Table copied as TSV');
+  };
+  const craw=document.querySelector('#vc-copy-raw');
+  if(craw) craw.onclick=async()=>{
+    const r=await fetch(raw); const buf=await r.arrayBuffer();
+    let bin=''; const bytes=new Uint8Array(buf); for(let i=0;i<bytes.length;i++)bin+=String.fromCharCode(bytes[i]);
+    if(window.quillancode&&window.quillancode.copyRaw) await window.quillancode.copyRaw(btoa(bin));
+    toast('Raw bytes copied to clipboard');
+  };
+  const cpath=document.querySelector('#vc-copy-path');
+  if(cpath) cpath.onclick=async()=>{
+    if(window.quillancode&&window.quillancode.copyText) await window.quillancode.copyText(child);
+    toast('Path copied');
+  };
   $('f-file').textContent=child;
 }
 async function openFile(child){

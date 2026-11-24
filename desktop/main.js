@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, shell, clipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell, clipboard, nativeImage } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -33,6 +33,11 @@ async function chooseFolder() {
 ipcMain.handle('open-folder', chooseFolder);
 ipcMain.handle('clipboard-read', () => clipboard.readText());
 ipcMain.handle('clipboard-write', (_event, text) => clipboard.writeText(String(text)));
+ipcMain.handle('clipboard-read-image', () => clipboard.readImage().toDataURL());
+ipcMain.handle('clipboard-write-image', (_event, dataUrl) =>
+  clipboard.writeImage(nativeImage.createFromDataURL(String(dataUrl))));
+ipcMain.handle('clipboard-write-buffer', (_event, base64) =>
+  clipboard.writeBuffer('public.quillancode-file', Buffer.from(String(base64), 'base64')));
 
 function buildMenu() {
   const template = [

@@ -71,6 +71,11 @@ async function main() {
       const ii=document.querySelector('#artifact-img');
       c.imageViewer = !!ii && ii.naturalWidth>100 &&
         String((document.querySelector('#img-dims')||{}).textContent||'').includes('rendered');
+      if(window.quillancode && window.quillancode.copyImage){
+        document.querySelector('#vc-copy-image').click(); await wait(350);
+        const data=await window.quillancode.readClipboardImage();
+        c.copyImage = String(data).startsWith('data:image/png');
+      }
       const h=JSON.stringify({w1:{dtype:'F32',shape:[64,64],data_offsets:[0,16384]},
         w2:{dtype:'BF16',shape:[64],data_offsets:[16384,16512]},
         w3:{dtype:'F16',shape:[512,128],data_offsets:[16512,149504]}});
@@ -80,6 +85,12 @@ async function main() {
       await loadTree('.'); await openFile(st); await wait(500);
       c.tensorViewer = document.querySelector('#viewer').textContent.includes('BF16') &&
         document.querySelectorAll('.sizebar i').length===3;
+      if(window.quillancode && window.quillancode.copyText){
+        document.querySelector('#vc-copy-table').click(); await wait(200);
+        c.copyTable = (await window.quillancode.readClipboard()).includes('dtype');
+        document.querySelector('#vc-copy-path').click(); await wait(200);
+        c.copyPath = (await window.quillancode.readClipboard())===st;
+      }
       c.tabs = document.querySelectorAll('.tab').length>=3;
       document.querySelector('#act-check').click(); await wait(400);
       c.checks = document.querySelector('#problems').textContent.length>3;
@@ -94,6 +105,9 @@ async function main() {
       document.querySelector('#clear').click();
       c.clear = document.querySelector('#chat').textContent.includes('cleared');
       c.palette = (document.querySelector('#pquery').value='README', await (async()=>{await runPalette();return document.querySelectorAll('#pres .res').length>0;})());
+      try{ await showViewer('qc_missing_artifact_'+tag+'.png','png');
+           c.missingArtifactGraceful = document.querySelector('#viewer').textContent.length>0; }
+      catch(e){ c.missingArtifactGraceful=false; }
     }catch(e){ c.error=String(e); }
     for(const p of [txt,img,st]) await post('/api/delete',{path:p});
     return c;
