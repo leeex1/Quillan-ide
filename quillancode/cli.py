@@ -10,6 +10,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 from . import __version__
 from .adapters import delegate, detect, report as adapter_report
 from .agent import AgentLoop
@@ -253,7 +258,7 @@ def _build_parser() -> argparse.ArgumentParser:
     artifact.add_argument("--json", action="store_true")
 
     ide = sub.add_parser("ide", help="agentic IDE shell and self-test")
-    ide.add_argument("action", choices=["selftest", "buffers"])
+    ide.add_argument("action", choices=["selftest", "buffers", "smoke"])
 
     native = sub.add_parser("native", help="compiled C++ hot-path core")
     native.add_argument("action", choices=["info", "bench", "selftest"])
@@ -1059,6 +1064,18 @@ def main(argv: list[str] | None = None) -> int:
         if command == "ide":
             from .server import ide_selftest
 
+            if args.action == "smoke":
+                script = Path(__file__).parent.parent / "scripts" / "ide_full_smoke.js"
+                proc = subprocess.run(
+                    ["node", str(script)],
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=180,
+                )
+                print(proc.stdout.strip() or proc.stderr.strip())
+                return proc.returncode
             if args.action == "buffers":
                 script = (
                     Path(__file__).parent.parent / "scripts" / "ide_buffer_check.js"

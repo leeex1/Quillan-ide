@@ -55,7 +55,7 @@
     font:10px ui-monospace,monospace;letter-spacing:1px;color:var(--muted)}
   select{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:6px 8px;max-width:190px}
   header,main,footer{position:relative;z-index:1}
-  main{display:grid;grid-template-columns:250px 1fr 360px;min-height:0}
+  main{display:grid;grid-template-columns:46px 250px 1fr 360px;min-height:0}
   aside,section{min-width:0;min-height:0;display:flex;flex-direction:column}
   aside{background:var(--panel);border-right:1px solid var(--line)}
   .panel-title{padding:12px 14px 8px;color:var(--muted);font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700}
@@ -63,6 +63,9 @@
   .nav button{padding:3px 8px;font-size:11px}
   #pathlabel{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #filter{margin:0 12px 10px;background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:7px 9px;outline:none}
+  #newname{display:none;margin:0 12px 10px;width:calc(100% - 24px);background:var(--bg);border:1px solid var(--accent2);
+    border-radius:7px;padding:7px 9px;outline:none}
+  #newname.open{display:block}
   #filter:focus{border-color:var(--accent2)}
   #tree{overflow:auto;flex:1;padding:0 6px 12px}
   .row{padding:5px 9px;border-radius:6px;cursor:pointer;display:flex;gap:8px;align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -83,9 +86,23 @@
   #viewer img,#viewer video{max-width:100%;max-height:60vh}
   #viewer audio{width:100%}
   #viewer h3{margin:0 0 10px;color:var(--accent2)}
-  .editor-wrap{display:flex;flex:1;min-height:0;margin:10px 12px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--panel)}
+  .activity{width:46px;background:#0f1422;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:10px}
+  .activity button{width:34px;height:34px;padding:0;background:transparent;border-color:transparent;color:var(--muted);font-size:15px}
+  .activity button:hover,.activity button.active{background:var(--panel2);border-color:var(--accent);color:var(--accent2)}
+  .editor-wrap{position:relative;display:flex;flex:1;min-height:0;margin:10px 12px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--panel)}
+  #highlight{position:absolute;left:60px;top:0;right:0;bottom:0;margin:0;padding:12px 14px;pointer-events:none;
+    font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:2;white-space:pre;overflow:hidden;color:#dce4f7}
+  .tk-key{color:#c792ea}.tk-str{color:#c3e88d}.tk-num{color:#f78c6c}.tk-com{color:#5f6f8f;font-style:italic}
+  .tk-fn{color:#82aaff}.tk-head{color:#22d3ee;font-weight:700}
+  #content{position:relative;z-index:2;background:transparent;color:transparent;caret-color:#e6edf7}
+  #content::selection{background:#7c5cff66}
+  .findbar{display:none;gap:6px;padding:6px 12px;background:#111827;border-bottom:1px solid var(--line);align-items:center}
+  .findbar.open{display:flex}
+  .findbar input{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 8px;width:180px;outline:none}
+  .problems{padding:0 12px 6px;font:11px ui-monospace,monospace;color:var(--muted);min-height:16px}
+  .problems.bad{color:var(--danger)}.problems.good{color:var(--ok)}
   #gutter{width:48px;padding:12px 8px;text-align:right;color:#4c5878;background:var(--panel);border-right:1px solid var(--line);font:12px/1.55 ui-monospace,monospace;overflow:hidden;white-space:pre}
-  #content{flex:1;resize:none;border:0;outline:none;background:var(--panel);padding:12px 14px;font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:2}
+  #content{flex:1;resize:none;border:0;outline:none;background:transparent;padding:12px 14px;font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:2}
   .hint{padding:0 14px 8px;color:var(--muted);font-size:11px}
   aside.agent{background:var(--panel);border-left:1px solid var(--line)}
   #setup{padding:0 12px 10px;color:var(--muted)}
@@ -129,6 +146,13 @@
   <button id="save" class="primary">Save</button>
 </header>
 <main>
+  <div class="activity">
+    <button class="active" id="act-tree" title="Explorer">◈</button>
+    <button id="act-find" title="Find in file">⌕</button>
+    <button id="act-check" title="Check current file">✓</button>
+    <button id="act-agent" title="Focus agent">✦</button>
+    <button id="act-setup" title="Provider settings">⚙</button>
+  </div>
   <aside>
     <div class="panel-title">Explorer</div>
     <div class="hud-card">
@@ -139,18 +163,29 @@
     </div>
     <div class="nav"><button id="up">↑ Up</button><span id="pathlabel">.</span></div>
     <input id="filter" placeholder="Filter files…  (Ctrl+P quick open)">
+    <input id="newname" placeholder="new file name — Enter to create, Esc to cancel">
     <div id="tree"></div>
     <div class="branding"><img src="/assets/ronin-badge.svg" alt=""><span>QUILLAN-RONIN<br>SOVEREIGN EDITION</span></div>
   </aside>
   <section class="editor">
     <div class="editor-hud"><span>◈ NEURAL WORKSPACE</span><span id="hud-latency">LATENCY 0ms</span><span>QCI//ONLINE</span></div>
     <div id="tabs"></div>
+    <div class="findbar" id="findbar"><input id="findtext" placeholder="Find in file…"><button id="findnext">Next</button><input id="replacetext" placeholder="Replace…"><button id="replaceone">Replace</button><button id="findclose">×</button></div>
     <div id="viewer"></div>
-    <div class="editor-wrap" id="textwrap"><div id="gutter">1</div><textarea id="content" spellcheck="false" placeholder="Select a file to begin"></textarea></div>
-    <div class="hint">Ctrl+S to save · files stay inside the workspace</div>
+    <div class="editor-wrap" id="textwrap"><div id="gutter">1</div><pre id="highlight"></pre><textarea id="content" spellcheck="false" placeholder="Select a file to begin"></textarea></div>
+    <div class="problems" id="problems">✓ diagnostics ready</div>
+    <div class="hint">Ctrl+S save · Ctrl+F find · files stay inside the workspace</div>
   </section>
   <aside class="agent">
     <div class="panel-title">Agent <span class="hud-chip live" style="float:right">neural link</span></div>
+    <details id="gitbox" style="padding:0 12px 8px;color:var(--muted)">
+      <summary style="cursor:pointer;font-size:11px;letter-spacing:1px;text-transform:uppercase;font-weight:700">Git · commit / push</summary>
+      <div style="display:grid;gap:5px;margin-top:7px">
+        <input id="commitmsg" placeholder="Commit message" style="background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;outline:none">
+        <div style="display:flex;gap:5px"><button id="gitcommit">Commit all</button><button id="gitpush">Push</button><button id="gitrefresh">Refresh</button></div>
+        <pre id="gitstatus" style="margin:0;font:10px ui-monospace,monospace;white-space:pre-wrap;max-height:90px;overflow:auto"></pre>
+      </div>
+    </details>
     <details id="setup">
       <summary>Provider · model · key</summary>
       <div class="grid">
@@ -191,6 +226,18 @@ let currentFile = '', currentPath = '.', provider = '', activeFile = '';
 let openTabs = [];
 let dirty = new Set();
 let buffers = {};  // path -> unsaved editor text, so tab switches never lose work
+const STATE_KEY='quillancode.ide.state';
+function persistState(){
+  try{ localStorage.setItem(STATE_KEY,JSON.stringify({buffers,dirty:[...dirty],tabs:openTabs})); }catch(e){}
+}
+function restoreState(){
+  try{
+    const s=JSON.parse(localStorage.getItem(STATE_KEY)||'null'); if(!s)return 0;
+    buffers=s.buffers||{}; dirty=new Set(s.dirty||[]); openTabs=s.tabs||[];
+    renderTabs();
+    return Object.keys(buffers).length;
+  }catch(e){ return 0; }
+}
 const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function toast(t){ const el=$('toast'); el.textContent=t; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),1800); }
 function addMsg(who,text){ const d=document.createElement('div'); d.className='msg '+(who==='you'?'user':'');
@@ -269,7 +316,7 @@ async function openFile(child){
   }
   currentFile=child; $('viewer').style.display='none';
   $('textwrap').style.display='flex'; $('content').value=content;
-  updateGutter(); $('f-file').textContent=child;
+  updateGutter(); applyHighlight(); $('f-file').textContent=child;
 }
 $('tree').onclick = async e => {
   const row=e.target.closest('.row'); if(!row) return;
@@ -280,21 +327,104 @@ $('tree').onclick = async e => {
 };
 function updateGutter(){ const n=$('content').value.split('\n').length;
   $('gutter').textContent=Array.from({length:n},(_,i)=>i+1).join('\n'); $('gutter').scrollTop=$('content').scrollTop; }
-$('content').addEventListener('input',()=>{ updateGutter(); if(activeFile){buffers[activeFile]=$('content').value;dirty.add(activeFile);renderTabs();} });
-$('content').addEventListener('scroll',()=>$('gutter').scrollTop=$('content').scrollTop);
+const KW={
+  py:'def class return if elif else for while in not and or import from as try except finally with lambda yield True False None self async await pass break continue raise global nonlocal del is assert'.split(' '),
+  js:'const let var function return if else for while class new import from export default async await true false null undefined typeof this try catch throw switch case break continue'.split(' '),
+  json:'true false null'.split(' '),
+};
+function highlightCode(code, lang){
+  const keys=new Set(KW[lang]||[]);
+  const re=/(#[^\n]*|\/\/[^\n]*|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|`[^`]*`|\b\d+(?:\.\d+)?\b|\b[A-Za-z_$][\w$]*\b)/g;
+  let out='',last=0,m;
+  while((m=re.exec(code))){
+    out+=esc(code.slice(last,m.index));
+    const t=m[0]; let cls='';
+    if(/^[#/]/.test(t)) cls='tk-com';
+    else if(/^['"`]/.test(t)) cls='tk-str';
+    else if(/^\d/.test(t)) cls='tk-num';
+    else if(keys.has(t)) cls='tk-key';
+    else if(/^[A-Za-z_$]/.test(t) && code.slice(re.lastIndex,re.lastIndex+1)==='(') cls='tk-fn';
+    out+=cls?('<span class="'+cls+'">'+esc(t)+'</span>'):esc(t);
+    last=m.index+t.length;
+  }
+  out+=esc(code.slice(last));
+  return out+'\n';
+}
+function applyHighlight(){
+  const ext=(currentFile||'').split('.').pop().toLowerCase();
+  const lang=ext==='py'?'py':(['js','jsx','ts','tsx'].includes(ext)?'js':(ext==='json'?'json':''));
+  const el=document.querySelector('#highlight'); if(el)el.innerHTML=highlightCode($('content').value,lang);
+}
+$('content').addEventListener('input',()=>{ updateGutter(); applyHighlight(); if(activeFile){buffers[activeFile]=$('content').value;dirty.add(activeFile);renderTabs();persistState();} });
+$('content').addEventListener('scroll',()=>{ const h=document.querySelector('#highlight'); $('gutter').scrollTop=$('content').scrollTop; if(h){h.scrollTop=$('content').scrollTop;h.scrollLeft=$('content').scrollLeft;} });
 $('filter').addEventListener('input',()=>loadTree(currentPath));
 async function save(){
   if(!currentFile){ toast('Select or create a file first'); return; }
   const r=await api('/api/file',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({path:currentFile,content:$('content').value})});
-  if(r.ok) dirty.delete(currentFile); renderTabs();
+  if(r.ok) dirty.delete(currentFile); renderTabs(); persistState();
   toast(r.ok?'Saved '+currentFile:('Error: '+r.error)); $('f-status').textContent=r.ok?'saved':'error';
 }
 $('save').onclick=save;
-document.addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();save();} });
-$('newfile').onclick=async()=>{ const name=prompt('New file name (relative to workspace):'); if(!name)return;
+function toggleFind(open){ const b=document.querySelector('#findbar'); b.classList.toggle('open',open!==undefined?open:undefined);
+  if(b.classList.contains('open')) $('findtext').focus(); }
+$('findnext').onclick=()=>{ const q=$('findtext').value; if(!q)return;
+  const text=$('content').value; const from=$('content').selectionEnd||0;
+  const i=text.toLowerCase().indexOf(q.toLowerCase(),from);
+  const hit=i>=0?i:text.toLowerCase().indexOf(q.toLowerCase());
+  if(hit<0){toast('No match');return;}
+  $('content').focus(); $('content').setSelectionRange(hit,hit+q.length); };
+$('replaceone').onclick=()=>{ const q=$('findtext').value; if(!q)return;
+  const text=$('content').value; const s=$('content').selectionStart, e=$('content').selectionEnd;
+  let i=(s!==e)?s:text.indexOf(q);
+  if(i<0){toast('No match');return;}
+  const next=text.slice(0,i)+$('replacetext').value+text.slice(i+q.length);
+  $('content').value=next; $('content').setSelectionRange(i,i+$('replacetext').value.length);
+  $('content').dispatchEvent(new Event('input')); };
+$('findclose').onclick=()=>toggleFind(false);
+async function checkCurrent(){
+  if(!currentFile){toast('Open a text file first');return;}
+  const r=await api('/api/check?path='+encodeURIComponent(currentFile));
+  const p=document.querySelector('#problems');
+  p.className='problems '+(r.ok?'good':'bad');
+  p.textContent=(r.ok?'✓ ':'✗ ')+currentFile+': '+String(r.message||'').replace(/\n/g,' ').slice(0,180);
+}
+async function gitStatus(){
+  try{ const r=await api('/api/git/status');
+    const el=document.querySelector('#gitstatus');
+    el.textContent=(r.branch||'no branch')+'\n'+(r.changes||'(clean)').slice(0,400);
+  }catch(e){ document.querySelector('#gitstatus').textContent='git unavailable'; }
+}
+$('gitrefresh').onclick=gitStatus;
+$('gitcommit').onclick=async()=>{
+  const r=await api('/api/git/commit',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({message:$('commitmsg').value||'quillancode update'})});
+  toast(r.ok?'Committed':('Commit failed: '+r.error||r.output)); $('commitmsg').value=''; gitStatus();
+};
+$('gitpush').onclick=async()=>{
+  const r=await api('/api/git/push',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  toast(r.ok?'Pushed':('Push failed: '+r.error||r.output)); gitStatus();
+};
+$('act-tree').onclick=()=>$('filter').focus();
+$('act-find').onclick=()=>toggleFind();
+$('act-check').onclick=checkCurrent;
+$('act-agent').onclick=()=>$('prompt').focus();
+$('act-setup').onclick=()=>document.querySelector('#setup').open=true;
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();save();}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='f'){e.preventDefault();toggleFind(true);}
+});
+$('newfile').onclick=()=>{ const el=$('newname'); el.classList.add('open'); el.value=''; el.focus(); };
+$('newname').addEventListener('keydown',async e=>{
+  if(e.key==='Escape'){ e.target.classList.remove('open'); return; }
+  if(e.key!=='Enter') return;
+  const name=e.target.value.trim(); if(!name) return;
   const r=await api('/api/file',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({path:name,content:''})}); toast(r.ok?'Created '+name:('Error: '+r.error)); loadTree(currentPath); };
+    body:JSON.stringify({path:name,content:''})});
+  toast(r.ok?'Created '+name:('Error: '+r.error));
+  e.target.classList.remove('open'); e.target.value='';
+  await loadTree(currentPath); if(r.ok) openFile(name);
+});
 async function send(text){
   const q=text||$('prompt').value.trim(); if(!q)return; $('prompt').value='';
   addMsg('you',q); $('f-status').textContent='working…';
@@ -351,8 +481,10 @@ if(window.quillancode){
   });
 }
 (async()=>{
+  const recovered=restoreState();
   const w=await api('/api/workspace'); $('f-cwd').textContent=w.cwd; $('crumb').textContent=w.cwd;
-  await loadSettings(); loadTree('.');
+  await loadSettings(); loadTree('.'); gitStatus();
+  if(recovered) toast('Recovered '+recovered+' unsaved buffer(s) — open a tab to continue');
 })();
 </script>
 </body>

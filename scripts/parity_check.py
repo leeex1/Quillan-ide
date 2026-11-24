@@ -77,6 +77,7 @@ CHECKS: list[Check] = [
     Check("Electron desktop shell", ["desktop", "check"], "DESKTOP_CHECK_OK"),
     Check("Electron IDE UI (live CDP)", ["desktop", "ui"], '"ok": true'),
     Check("IDE unsaved tab buffers", ["ide", "buffers"], '"ok": true'),
+    Check("IDE full UI smoke", ["ide", "smoke"], '"ok": true'),
     Check("native C++ core", ["native", "info"], '"enabled": true'),
     Check("native file I/O selftest", ["native", "selftest"], "NATIVE_SELFTEST_OK"),
     Check(

@@ -164,6 +164,77 @@ def _build_handler(
                             break
                 self._send(200, {"results": found})
                 return
+            if self.path.startswith("/api/check"):
+                import subprocess
+                import tomllib
+
+                query = self.path.split("?", 1)[1] if "?" in self.path else ""
+                terms = dict(
+                    part.split("=", 1) for part in query.split("&") if "=" in part
+                )
+                try:
+                    from urllib.parse import unquote
+
+                    target = self._path(unquote(terms.get("path", "")))
+                    suffix = target.suffix.lower()
+                    result = {
+                        "path": str(target),
+                        "ok": True,
+                        "message": "no checker for this type",
+                    }
+                    if not target.is_file():
+                        raise FileNotFoundError(str(target))
+                    if suffix == ".py":
+                        proc = subprocess.run(
+                            [sys.executable, "-m", "py_compile", str(target)],
+                            capture_output=True,
+                            text=True,
+                            encoding="utf-8",
+                            errors="replace",
+                            timeout=30,
+                        )
+                        result = {
+                            "path": str(target),
+                            "ok": proc.returncode == 0,
+                            "message": (proc.stderr or "syntax OK").strip()[:800],
+                        }
+                    elif suffix == ".json":
+                        json.loads(target.read_text(encoding="utf-8", errors="replace"))
+                        result = {
+                            "path": str(target),
+                            "ok": True,
+                            "message": "valid JSON",
+                        }
+                    elif suffix in {".toml", ".ini"}:
+                        tomllib.loads(
+                            target.read_text(encoding="utf-8", errors="replace")
+                        )
+                        result = {
+                            "path": str(target),
+                            "ok": True,
+                            "message": "valid TOML",
+                        }
+                    self._send(200, result)
+                except (
+                    PermissionError,
+                    OSError,
+                    ValueError,
+                    subprocess.TimeoutExpired,
+                ) as exc:
+                    self._send(
+                        200,
+                        {
+                            "path": terms.get("path", ""),
+                            "ok": False,
+                            "message": f"{type(exc).__name__}: {exc}"[:800],
+                        },
+                    )
+                return
+            if self.path.startswith("/api/git/status"):
+                from .github import status as git_status
+
+                self._send(200, git_status(Path(config.get("server.workspace", "."))))
+                return
             if self.path.startswith("/api/workspace"):
                 self._send(
                     200,
@@ -252,6 +323,37 @@ document.getElementById('chat').addEventListener('submit', async (e) => {
                 self._send(404, {"error": "not found"})
 
         def do_POST(self) -> None:  # noqa: N802
+            if self.path.startswith("/api/git/"):
+                from .github import git
+
+                try:
+                    size = int(self.headers.get("Content-Length", "0"))
+                    payload = json.loads(self.rfile.read(size).decode("utf-8"))
+                    root = Path(config.get("server.workspace", "."))
+                    if self.path.startswith("/api/git/commit"):
+                        message = str(
+                            payload.get("message", "quillancode update")
+                        ).strip()
+                        add = git(["add", "-A"], root)
+                        commit = git(["commit", "-m", message], root)
+                        result = {
+                            "ok": add["ok"] and commit["ok"],
+                            "output": (
+                                commit.get("stdout", "") + commit.get("stderr", "")
+                            )[-800:],
+                        }
+                    else:
+                        push = git(["push"], root)
+                        result = {
+                            "ok": push["ok"],
+                            "output": (push.get("stdout", "") + push.get("stderr", ""))[
+                                -800:
+                            ],
+                        }
+                    self._send(200, result)
+                except (ValueError, OSError) as exc:
+                    self._send(400, {"error": str(exc)})
+                return
             if self.path.startswith("/api/settings"):
                 from .auth import AuthStore
 
@@ -310,12 +412,30 @@ document.getElementById('chat').addEventListener('submit', async (e) => {
                     if "base64" in payload:
                         import base64
 
-                        target.write_bytes(base64.b64decode(str(payload["base64"])))
+                        data = base64.b64decode(str(payload["base64"]))
                     else:
-                        target.write_text(
-                            str(payload.get("content", "")), encoding="utf-8"
-                        )
-                    self._send(200, {"ok": True, "path": str(target)})
+                        data = str(payload.get("content", "")).encode("utf-8")
+                    backup = None
+                    if target.is_file() and target.read_bytes() != data:
+                        import re as _re
+                        import shutil
+                        from datetime import datetime
+
+                        bdir = Path.home() / ".quillancode" / "backups"
+                        bdir.mkdir(parents=True, exist_ok=True)
+                        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+                        safe = _re.sub(r"[^A-Za-z0-9_.-]", "_", target.name)[:60]
+                        backup = bdir / f"{stamp}_{safe}"
+                        shutil.copy2(target, backup)
+                    target.write_bytes(data)
+                    self._send(
+                        200,
+                        {
+                            "ok": True,
+                            "path": str(target),
+                            "backup": str(backup) if backup else None,
+                        },
+                    )
                 except (PermissionError, OSError, ValueError) as exc:
                     self._send(400, {"error": str(exc)})
                 return
@@ -414,6 +534,15 @@ def ide_selftest() -> str:
             raw = urllib.request.urlopen(
                 base + "/api/raw?path=" + urllib.parse.quote("x.txt"), timeout=5
             ).read()
+            overwrite_req = urllib.request.Request(
+                base + "/api/file",
+                data=json.dumps({"path": "x.txt", "content": "changed"}).encode(),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            overwrite = json.loads(
+                urllib.request.urlopen(overwrite_req, timeout=5).read()
+            )
             big = Path(td) / "big.bin"
             big.write_bytes(b"Q" * (1024 * 1024))
             big_raw = urllib.request.urlopen(
@@ -437,6 +566,7 @@ def ide_selftest() -> str:
                 and len(artifact.get("tensors", [])) == 1
                 and raw == b"ide-ok"
                 and len(big_raw) == 1024 * 1024
+                and bool(overwrite.get("backup"))
                 and "providers" in settings
                 and b"<svg" in logo
                 and "x.txt" in search.get("results", [])

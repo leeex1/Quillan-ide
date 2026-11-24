@@ -1429,5 +1429,32 @@ class ByoGuideTests(unittest.TestCase):
         self.assertIn("No live generation is claimed", proc.stdout)
 
 
+class ConsoleEncodingTests(unittest.TestCase):
+    def test_diff_with_unicode_does_not_crash(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            for args in (
+                ["init", "-q"],
+                ["config", "user.email", "qc@local"],
+                ["config", "user.name", "QC"],
+            ):
+                subprocess.run(["git", *args], cwd=td, check=False)
+            target = Path(td) / "unicode.txt"
+            target.write_text("hello\n", encoding="utf-8")
+            subprocess.run(["git", "add", "unicode.txt"], cwd=td, check=False)
+            subprocess.run(["git", "commit", "-q", "-m", "base"], cwd=td, check=False)
+            target.write_text("hello ◆ ★ café\n", encoding="utf-8")
+            proc = subprocess.run(
+                [sys.executable, "-m", "quillancode", "--cwd", td, "diff"],
+                cwd=str(PKG),
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=60,
+            )
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            self.assertIn("café", proc.stdout)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
