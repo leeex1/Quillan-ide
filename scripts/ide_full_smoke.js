@@ -121,6 +121,8 @@ async function main() {
     }catch(e){ c.error=String(e); }
     for(const p of [txt,img,st]) await post('/api/delete',{path:p});
     await loadTree('.');
+    openTabs=[]; dirty=new Set(); buffers={}; renderTabs(); persistState();
+    await openFile('README.md');
     return c;
   })()`);
 
