@@ -190,7 +190,8 @@ setInterval(()=>{const el=document.querySelector('#clock');if(el)el.textContent=
 let currentFile = '', currentPath = '.', provider = '', activeFile = '';
 let openTabs = [];
 let dirty = new Set();
-const esc = s => String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+let buffers = {};  // path -> unsaved editor text, so tab switches never lose work
+const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function toast(t){ const el=$('toast'); el.textContent=t; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),1800); }
 function addMsg(who,text){ const d=document.createElement('div'); d.className='msg '+(who==='you'?'user':'');
   d.innerHTML='<span class="who">'+who+'</span>'+String(text).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
@@ -231,6 +232,8 @@ $('tabs').onclick = e => {
 const BINARY_EXT = ['png','jpg','jpeg','gif','webp','svg','mp3','wav','ogg','mp4','webm','pdf',
   'pt','pth','ckpt','safetensors','gguf','ggml','npy','npz','onnx','bin','model'];
 async function showViewer(child,ext){
+  if(currentFile && $('textwrap').style.display!=='none') buffers[currentFile]=$('content').value;
+  currentFile='';
   $('textwrap').style.display='none'; const v=$('viewer'); v.style.display='block';
   v.innerHTML='<h3>Reading artifact…</h3>';
   const a=await api('/api/artifact?path='+encodeURIComponent(child));
@@ -252,14 +255,21 @@ async function showViewer(child,ext){
   v.innerHTML=html; $('f-file').textContent=child;
 }
 async function openFile(child){
+  if(currentFile && currentFile!==child && $('textwrap').style.display!=='none')
+    buffers[currentFile]=$('content').value;
   if(!openTabs.includes(child)) openTabs.push(child);
   activeFile=child; renderTabs();
   const ext=child.split('.').pop().toLowerCase();
   if(BINARY_EXT.includes(ext)) return showViewer(child,ext);
-  const d=await api('/api/file?path='+encodeURIComponent(child));
-  if(d.content!==undefined){ currentFile=child; $('viewer').style.display='none';
-    $('textwrap').style.display='flex'; $('content').value=d.content;
-    updateGutter(); $('f-file').textContent=child; }
+  let content = Object.prototype.hasOwnProperty.call(buffers,child) ? buffers[child] : null;
+  if(content===null){
+    const d=await api('/api/file?path='+encodeURIComponent(child));
+    if(d.content===undefined) return;
+    content=d.content; buffers[child]=content;
+  }
+  currentFile=child; $('viewer').style.display='none';
+  $('textwrap').style.display='flex'; $('content').value=content;
+  updateGutter(); $('f-file').textContent=child;
 }
 $('tree').onclick = async e => {
   const row=e.target.closest('.row'); if(!row) return;
@@ -270,7 +280,7 @@ $('tree').onclick = async e => {
 };
 function updateGutter(){ const n=$('content').value.split('\n').length;
   $('gutter').textContent=Array.from({length:n},(_,i)=>i+1).join('\n'); $('gutter').scrollTop=$('content').scrollTop; }
-$('content').addEventListener('input',()=>{ updateGutter(); if(activeFile){dirty.add(activeFile);renderTabs();} });
+$('content').addEventListener('input',()=>{ updateGutter(); if(activeFile){buffers[activeFile]=$('content').value;dirty.add(activeFile);renderTabs();} });
 $('content').addEventListener('scroll',()=>$('gutter').scrollTop=$('content').scrollTop);
 $('filter').addEventListener('input',()=>loadTree(currentPath));
 async function save(){
@@ -332,7 +342,9 @@ if(window.quillancode){
   window.quillancode.onQuickOpen(()=>{$('palette').classList.add('open');$('pquery').focus();});
   window.quillancode.onFocusPrompt(()=>$('prompt').focus());
   window.quillancode.onClearChat(()=>$('clear').click());
-  window.quillancode.onReview(()=>send('Review this file and list concrete issues'));
+  window.quillancode.onReview(()=>send(currentFile
+    ? 'Review '+currentFile+' and list concrete issues'
+    : 'Review the workspace and list concrete issues'));
   window.quillancode.onWorkspaceChanged(async()=>{
     const w=await api('/api/workspace'); $('f-cwd').textContent=w.cwd; $('crumb').textContent=w.cwd;
     loadTree('.');

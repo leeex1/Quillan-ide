@@ -253,7 +253,7 @@ def _build_parser() -> argparse.ArgumentParser:
     artifact.add_argument("--json", action="store_true")
 
     ide = sub.add_parser("ide", help="agentic IDE shell and self-test")
-    ide.add_argument("action", choices=["selftest"])
+    ide.add_argument("action", choices=["selftest", "buffers"])
 
     native = sub.add_parser("native", help="compiled C++ hot-path core")
     native.add_argument("action", choices=["info", "bench", "selftest"])
@@ -1059,6 +1059,20 @@ def main(argv: list[str] | None = None) -> int:
         if command == "ide":
             from .server import ide_selftest
 
+            if args.action == "buffers":
+                script = (
+                    Path(__file__).parent.parent / "scripts" / "ide_buffer_check.js"
+                )
+                proc = subprocess.run(
+                    ["node", str(script)],
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=120,
+                )
+                print(proc.stdout.strip() or proc.stderr.strip())
+                return proc.returncode
             print(ide_selftest())
             return 0
 

@@ -125,12 +125,15 @@ def _build_handler(
                             mimetypes.guess_type(target.name)[0]
                             or "application/octet-stream"
                         )
-                        body = target.read_bytes()
+                        import shutil
+
                         self.send_response(200)
                         self.send_header("Content-Type", ctype)
-                        self.send_header("Content-Length", str(len(body)))
+                        self.send_header("Content-Length", str(target.stat().st_size))
+                        self.send_header("Accept-Ranges", "bytes")
                         self.end_headers()
-                        self.wfile.write(body)
+                        with target.open("rb") as fh:
+                            shutil.copyfileobj(fh, self.wfile, length=65536)
                 except (PermissionError, OSError, ValueError) as exc:
                     self._send(400, {"error": str(exc)})
                 return
@@ -411,6 +414,11 @@ def ide_selftest() -> str:
             raw = urllib.request.urlopen(
                 base + "/api/raw?path=" + urllib.parse.quote("x.txt"), timeout=5
             ).read()
+            big = Path(td) / "big.bin"
+            big.write_bytes(b"Q" * (1024 * 1024))
+            big_raw = urllib.request.urlopen(
+                base + "/api/raw?path=" + urllib.parse.quote("big.bin"), timeout=10
+            ).read()
             logo = urllib.request.urlopen(
                 base + "/assets/quillan-logo.svg", timeout=5
             ).read()
@@ -428,6 +436,7 @@ def ide_selftest() -> str:
                 and "cwd" in workspace
                 and len(artifact.get("tensors", [])) == 1
                 and raw == b"ide-ok"
+                and len(big_raw) == 1024 * 1024
                 and "providers" in settings
                 and b"<svg" in logo
                 and "x.txt" in search.get("results", [])
